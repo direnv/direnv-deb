@@ -1,0 +1,25 @@
+Source: direnv
+Section: utils
+Priority: optional
+Maintainer: Punit Agrawal <punitagrawal@gmail.com>
+Build-Depends: debhelper (>= 9.0.0),
+ golang-go,
+ golang-src
+Standards-Version: 3.9.4
+Homepage: http://direnv.net/
+#Vcs-Git: git://git.debian.org/collab-maint/direnv.git
+#Vcs-Browser: http://git.debian.org/?p=collab-maint/direnv.git;a=summary
+
+Package: direnv
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Utility to set directory specific environment variables
+ direnv is a shell extension that loads different environment
+ variables depending on your path.
+ .
+ Instead of putting every environment variable in your
+ "~/.profile", have directory-specific ".envrc" files for your
+ AWSACCESSKEY, LIBRARY_PATH or other environment variables.
+ .
+ It does some of the job of rvm, rbenv or virtualenv but in a language-
+ agnostic way.
