@@ -1,1 +1,2 @@
 0001-Respect-prefix-in-addition-to-DESTDIR-in-Makefile.patch
+0002-Update-Makefile-to-skip-installing-the-manpages.patch

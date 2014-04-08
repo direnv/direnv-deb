@@ -2,6 +2,7 @@ direnv (2.3.0-1) UNRELEASED; urgency=medium
 
   * Initial release. (Closes: #743887: ITP: direnv -- A utility to set
     directory specific environment variables)
-  * Update Makefile to respect prefix in addition to DESTDIR
+  * Update Makefile to respect PREFIX in addition to DESTDIR
+  * Update Makefile to skip installing man pages
 
  -- Punit Agrawal <punitagrawal@gmail.com>  Tue, 08 Apr 2014 00:14:08 +0100
