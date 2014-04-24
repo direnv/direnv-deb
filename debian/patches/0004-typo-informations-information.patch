@@ -1,0 +1,21 @@
+From: Javi Merino <cibervicho@gmail.com>
+Date: Wed, 23 Apr 2014 08:12:01 +0100
+Subject: typo: informations -> information
+
+---
+ cmd_status.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/cmd_status.go b/cmd_status.go
+index 0f225c0..80f58a9 100644
+--- a/cmd_status.go
++++ b/cmd_status.go
+@@ -6,7 +6,7 @@ import (
+ 
+ var CmdStatus = &Cmd{
+ 	Name: "status",
+-	Desc: "prints some debug status informations",
++	Desc: "prints some debug status information",
+ 	Fn: func(env Env, args []string) error {
+ 		config, err := LoadConfig(env)
+ 		if err != nil {
