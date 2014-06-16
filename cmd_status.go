@@ -6,7 +6,7 @@ import (
 
 var CmdStatus = &Cmd{
 	Name: "status",
-	Desc: "prints some debug status informations",
+	Desc: "prints some debug status information",
 	Fn: func(env Env, args []string) error {
 		config, err := LoadConfig(env)
 		if err != nil {
@@ -15,6 +15,7 @@ var CmdStatus = &Cmd{
 
 		fmt.Println("direnv exec path", config.SelfPath)
 		fmt.Println("DIRENV_CONFIG", config.ConfDir)
+		fmt.Println("DIRENV_BASH", config.BashPath)
 
 		loadedRC := config.LoadedRC()
 		foundRC := config.FindRC()
