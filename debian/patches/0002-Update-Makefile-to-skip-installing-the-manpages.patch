@@ -7,14 +7,14 @@ Subject: Update Makefile to skip installing the manpages
  1 file changed, 3 deletions(-)
 
 diff --git a/Makefile b/Makefile
-index 4e87fda..12f7123 100644
+index b19194b..90c48a0 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -32,7 +32,4 @@ release: build
+@@ -35,7 +35,4 @@ release: build
  
  install: all
- 	install -d bin $(DESTDIR)$(PREFIX)/bin
--	install -d man $(DESTDIR)$(PREFIX)/share/man/man1
+ 	install -d $(DESTDIR)$(PREFIX)/bin
+-	install -d $(DESTDIR)$(PREFIX)/share/man/man1
  	install direnv $(DESTDIR)$(PREFIX)/bin
 -	cp -R man/*.1 $(DESTDIR)$(PREFIX)/share/man/man1
 -

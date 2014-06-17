@@ -7,25 +7,25 @@ Subject: Respect prefix in addition to DESTDIR in Makefile
  1 file changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/Makefile b/Makefile
-index 5efef07..4e87fda 100644
+index f8f4039..b19194b 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -1,4 +1,4 @@
 -DESTDIR ?= /usr/local
 +PREFIX ?= /usr
  
- RONN := $(shell which ronn >/dev/null 2>&1 && echo "ronn -w --manual=direnv" || echo "@echo 'Could not generate manpage because ronn is missing. gem install ronn' || ")
- RONNS = $(wildcard man/*.ronn)
-@@ -31,8 +31,8 @@ release: build
+ MAN_MD = $(wildcard man/*.md)
+ ROFFS = $(MAN_MD:.md=)
+@@ -34,8 +34,8 @@ release: build
  	git tag v`./direnv version`
  
  install: all
--	install -d bin $(DESTDIR)/bin
--	install -d man $(DESTDIR)/share/man/man1
+-	install -d $(DESTDIR)/bin
+-	install -d $(DESTDIR)/share/man/man1
 -	install direnv $(DESTDIR)/bin
 -	cp -R man/*.1 $(DESTDIR)/share/man/man1
-+	install -d bin $(DESTDIR)$(PREFIX)/bin
-+	install -d man $(DESTDIR)$(PREFIX)/share/man/man1
++	install -d $(DESTDIR)$(PREFIX)/bin
++	install -d $(DESTDIR)$(PREFIX)/share/man/man1
 +	install direnv $(DESTDIR)$(PREFIX)/bin
 +	cp -R man/*.1 $(DESTDIR)$(PREFIX)/share/man/man1
  
