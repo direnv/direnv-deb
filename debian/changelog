@@ -1,3 +1,13 @@
+direnv (2.4.0-1~1.gbpe6f7ff) UNRELEASED; urgency=medium
+
+  ** SNAPSHOT build @e6f7ffd037264aefbd746dac04f427d025ed44d7 **
+
+  * Imported Upstream version 2.4.0
+  * Update patches
+  * Drop patches that are already in upstream
+
+ -- Punit Agrawal <punitagrawal@gmail.com>  Tue, 17 Jun 2014 22:10:24 +0100
+
 direnv (2.3.0-1) unstable; urgency=medium
 
   * Initial release. (Closes: #743887: ITP: direnv -- A utility to set
