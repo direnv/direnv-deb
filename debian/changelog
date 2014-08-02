@@ -2,6 +2,7 @@ direnv (2.4.0-1) unstable; urgency=medium
 
   * Imported Upstream version 2.4.0
   * Update patches
+  * Drop patches that are already in upstream
   * Override lintian error - statically linked binary
 
  -- Punit Agrawal <punitagrawal@gmail.com>  Tue, 17 Jun 2014 22:10:24 +0100
