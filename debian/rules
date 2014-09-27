@@ -5,4 +5,8 @@
 # export DH_VERBOSE=1
 
 %:
-	dh $@ 
+	dh $@
+
+override_dh_auto_test:
+	HOME=$(CURDIR)/tmp dh_auto_test -a
+	rm -r $(CURDIR)/tmp
