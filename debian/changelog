@@ -1,3 +1,10 @@
+direnv (2.4.0-3) unstable; urgency=medium
+
+  * Remove override statically-linked-binary as it is no longer required
+  * Update Standards Version to 3.9.6
+
+ -- Punit Agrawal <punitagrawal@gmail.com>  Sat, 08 Nov 2014 14:57:40 +0000
+
 direnv (2.4.0-2) unstable; urgency=medium
 
   * Override dh_auto_test to set a writable $HOME (Closes: #756963)
