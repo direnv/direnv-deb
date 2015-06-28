@@ -17,7 +17,7 @@ DIRENV_LOG_FORMAT="${DIRENV_LOG_FORMAT-direnv: %%s}"
 #
 log_status() {
   if [[ -n $DIRENV_LOG_FORMAT ]]; then
-    local msg="$@"
+    local msg="$*"
     printf "${DIRENV_LOG_FORMAT}\n" "$msg" >&2
   fi
 }
@@ -130,8 +130,10 @@ source_env() {
     rcpath="$rcpath/.envrc"
   fi
   log_status "loading $rcfile"
-  pushd "$(dirname "$rcpath")" > /dev/null
-  . "./$(basename "$rcpath")"
+  pushd "$(pwd -P 2>/dev/null)" > /dev/null
+    pushd "$(dirname "$rcpath")" > /dev/null
+    . "./$(basename "$rcpath")"
+    popd > /dev/null
   popd > /dev/null
 }
 
@@ -238,7 +240,9 @@ load_prefix() {
 # A semantic dispatch used to describe common project layouts.
 #
 layout() {
-  eval "layout_$1"
+  local name=$1
+  shift
+  eval "layout_$name" "$@"
 }
 
 # Usage: layout go
@@ -272,18 +276,37 @@ layout_perl() {
   PATH_add "$libdir/bin"
 }
 
-# Usage: layout python
+# Usage: layout python <python_exe>
 #
-# Creates and loads a virtualenv environment under "$PWD/.direnv/virtualenv".
+# Creates and loads a virtualenv environment under
+# "$PWD/.direnv/python-$python_version".
 # This forces the installation of any egg into the project's sub-folder.
 #
+# It's possible to specify the python executable if you want to use different
+# versions of python.
+#
 layout_python() {
-  export VIRTUAL_ENV=$PWD/.direnv/virtualenv
-  if ! [ -d "$VIRTUAL_ENV" ]; then
-    virtualenv --no-site-packages --distribute "$VIRTUAL_ENV"
+  local python="${1:-python}"
+  local old_env="$PWD/.direnv/virtualenv"
+  unset PYTHONHOME
+  if [[ -d $old_env && $python = "python" ]]; then
+    export VIRTUAL_ENV="$old_virtualenv"
+  else
+    local python_version=$("$python" -c "import platform as p;print(p.python_version())")
+    export VIRTUAL_ENV="$PWD/.direnv/python-$python_version"
+    if [[ ! -d $VIRTUAL_ENV ]]; then
+      virtualenv "--python=$python" "$VIRTUAL_ENV"
+    fi
   fi
-  virtualenv --relocatable "$VIRTUAL_ENV" >/dev/null
   PATH_add "$VIRTUAL_ENV/bin"
+}
+
+# Usage: layout python3
+#
+# A shortcut for $(layout python python3)
+#
+layout_python3() {
+  layout_python python3
 }
 
 # Usage: layout ruby
@@ -321,9 +344,9 @@ layout_ruby() {
 #
 use() {
   local cmd="$1"
-  log_status "using $@"
+  log_status "using $*"
   shift
-  use_$cmd "$@"
+  "use_$cmd" "$@"
 }
 
 # Usage: use rbenv
