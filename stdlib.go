@@ -19,7 +19,7 @@ const STDLIB = "# These are the commands available in an .envrc context\n" +
 	"#\n" +
 	"log_status() {\n" +
 	"  if [[ -n $DIRENV_LOG_FORMAT ]]; then\n" +
-	"    local msg=\"$@\"\n" +
+	"    local msg=\"$*\"\n" +
 	"    printf \"${DIRENV_LOG_FORMAT}\\n\" \"$msg\" >&2\n" +
 	"  fi\n" +
 	"}\n" +
@@ -132,8 +132,10 @@ const STDLIB = "# These are the commands available in an .envrc context\n" +
 	"    rcpath=\"$rcpath/.envrc\"\n" +
 	"  fi\n" +
 	"  log_status \"loading $rcfile\"\n" +
-	"  pushd \"$(dirname \"$rcpath\")\" > /dev/null\n" +
-	"  . \"./$(basename \"$rcpath\")\"\n" +
+	"  pushd \"$(pwd -P 2>/dev/null)\" > /dev/null\n" +
+	"    pushd \"$(dirname \"$rcpath\")\" > /dev/null\n" +
+	"    . \"./$(basename \"$rcpath\")\"\n" +
+	"    popd > /dev/null\n" +
 	"  popd > /dev/null\n" +
 	"}\n" +
 	"\n" +
@@ -240,7 +242,9 @@ const STDLIB = "# These are the commands available in an .envrc context\n" +
 	"# A semantic dispatch used to describe common project layouts.\n" +
 	"#\n" +
 	"layout() {\n" +
-	"  eval \"layout_$1\"\n" +
+	"  local name=$1\n" +
+	"  shift\n" +
+	"  eval \"layout_$name\" \"$@\"\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: layout go\n" +
@@ -274,18 +278,37 @@ const STDLIB = "# These are the commands available in an .envrc context\n" +
 	"  PATH_add \"$libdir/bin\"\n" +
 	"}\n" +
 	"\n" +
-	"# Usage: layout python\n" +
+	"# Usage: layout python <python_exe>\n" +
 	"#\n" +
-	"# Creates and loads a virtualenv environment under \"$PWD/.direnv/virtualenv\".\n" +
+	"# Creates and loads a virtualenv environment under\n" +
+	"# \"$PWD/.direnv/python-$python_version\".\n" +
 	"# This forces the installation of any egg into the project's sub-folder.\n" +
 	"#\n" +
+	"# It's possible to specify the python executable if you want to use different\n" +
+	"# versions of python.\n" +
+	"#\n" +
 	"layout_python() {\n" +
-	"  export VIRTUAL_ENV=$PWD/.direnv/virtualenv\n" +
-	"  if ! [ -d \"$VIRTUAL_ENV\" ]; then\n" +
-	"    virtualenv --no-site-packages --distribute \"$VIRTUAL_ENV\"\n" +
+	"  local python=\"${1:-python}\"\n" +
+	"  local old_env=\"$PWD/.direnv/virtualenv\"\n" +
+	"  unset PYTHONHOME\n" +
+	"  if [[ -d $old_env && $python = \"python\" ]]; then\n" +
+	"    export VIRTUAL_ENV=\"$old_virtualenv\"\n" +
+	"  else\n" +
+	"    local python_version=$(\"$python\" -c \"import platform as p;print(p.python_version())\")\n" +
+	"    export VIRTUAL_ENV=\"$PWD/.direnv/python-$python_version\"\n" +
+	"    if [[ ! -d $VIRTUAL_ENV ]]; then\n" +
+	"      virtualenv \"--python=$python\" \"$VIRTUAL_ENV\"\n" +
+	"    fi\n" +
 	"  fi\n" +
-	"  virtualenv --relocatable \"$VIRTUAL_ENV\" >/dev/null\n" +
 	"  PATH_add \"$VIRTUAL_ENV/bin\"\n" +
+	"}\n" +
+	"\n" +
+	"# Usage: layout python3\n" +
+	"#\n" +
+	"# A shortcut for $(layout python python3)\n" +
+	"#\n" +
+	"layout_python3() {\n" +
+	"  layout_python python3\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: layout ruby\n" +
@@ -323,9 +346,9 @@ const STDLIB = "# These are the commands available in an .envrc context\n" +
 	"#\n" +
 	"use() {\n" +
 	"  local cmd=\"$1\"\n" +
-	"  log_status \"using $@\"\n" +
+	"  log_status \"using $*\"\n" +
 	"  shift\n" +
-	"  use_$cmd \"$@\"\n" +
+	"  \"use_$cmd\" \"$@\"\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: use rbenv\n" +
