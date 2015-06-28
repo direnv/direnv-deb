@@ -1,20 +1,22 @@
 From: Punit Agrawal <punitagrawal@gmail.com>
-Date: Tue, 8 Apr 2014 19:09:56 +0100
+Date: Sun, 28 Jun 2015 13:30:11 +0100
 Subject: Update Makefile to skip installing the manpages
 
 ---
- Makefile | 3 ---
- 1 file changed, 3 deletions(-)
+ Makefile | 2 --
+ 1 file changed, 2 deletions(-)
 
 diff --git a/Makefile b/Makefile
-index b19194b..90c48a0 100644
+index 2ea7959..8dd5398 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -35,7 +35,4 @@ release: build
+@@ -31,9 +31,7 @@ test: build
  
  install: all
  	install -d $(DESTDIR)$(PREFIX)/bin
 -	install -d $(DESTDIR)$(PREFIX)/share/man/man1
  	install direnv $(DESTDIR)$(PREFIX)/bin
 -	cp -R man/*.1 $(DESTDIR)$(PREFIX)/share/man/man1
--
+ 
+ dist:
+ 	go get github.com/mitchellh/gox

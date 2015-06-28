@@ -1,5 +1,5 @@
 From: Punit Agrawal <punitagrawal@gmail.com>
-Date: Tue, 8 Apr 2014 18:43:21 +0100
+Date: Sun, 28 Jun 2015 13:29:18 +0100
 Subject: Respect prefix in addition to DESTDIR in Makefile
 
 ---
@@ -7,7 +7,7 @@ Subject: Respect prefix in addition to DESTDIR in Makefile
  1 file changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/Makefile b/Makefile
-index f8f4039..b19194b 100644
+index b307110..2ea7959 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -1,4 +1,4 @@
@@ -16,8 +16,8 @@ index f8f4039..b19194b 100644
  
  MAN_MD = $(wildcard man/*.md)
  ROFFS = $(MAN_MD:.md=)
-@@ -34,8 +34,8 @@ release: build
- 	git tag v`./direnv version`
+@@ -30,10 +30,10 @@ test: build
+ 	./test/direnv-test.sh
  
  install: all
 -	install -d $(DESTDIR)/bin
@@ -29,3 +29,5 @@ index f8f4039..b19194b 100644
 +	install direnv $(DESTDIR)$(PREFIX)/bin
 +	cp -R man/*.1 $(DESTDIR)$(PREFIX)/share/man/man1
  
+ dist:
+ 	go get github.com/mitchellh/gox
