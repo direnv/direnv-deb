@@ -1,5 +1,6 @@
-direnv (2.4.0-3) UNRELEASED; urgency=medium
+direnv (2.6.0-1) UNRELEASED; urgency=medium
 
+  * Imported upstream version 2.6.0
   * Remove override statically-linked-binary as it is no longer required
   * Update Standards Version to 3.9.6
 
