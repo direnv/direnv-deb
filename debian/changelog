@@ -1,4 +1,4 @@
-direnv (2.4.0-3) unstable; urgency=medium
+direnv (2.4.0-3) UNRELEASED; urgency=medium
 
   * Remove override statically-linked-binary as it is no longer required
   * Update Standards Version to 3.9.6
