@@ -9,4 +9,4 @@
 
 override_dh_auto_test:
 	HOME=$(CURDIR)/tmp dh_auto_test -a
-	rm -r $(CURDIR)/tmp
+	rm -rf $(CURDIR)/tmp
