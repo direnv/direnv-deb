@@ -1,0 +1,19 @@
+From: Punit Agrawal <punitagrawal@gmail.com>
+Date: Sat, 18 Jul 2015 08:41:31 +0100
+Subject: Let bash inherit path in the dump test
+
+---
+ test/scenarios/dump/.envrc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/scenarios/dump/.envrc b/test/scenarios/dump/.envrc
+index 648c84a..4a73d18 100644
+--- a/test/scenarios/dump/.envrc
++++ b/test/scenarios/dump/.envrc
+@@ -2,5 +2,5 @@ direnv_load env \
+ 	LS_COLORS='*.ogg=38;5;45:*.wav=38;5;45' \
+ 	LESSOPEN='||/usr/bin/lesspipe.sh %s' \
+ 	THREE_BACKSLASHES='\\\' \
+-	bash -l -c "direnv dump"
++	bash -c "direnv dump"
+ 
