@@ -1,3 +1,11 @@
+direnv (2.7.0-1) UNRELEASED; urgency=medium
+
+  * Imported Upstream version 2.7.0
+  * Drop fix to 'dump' test that is merged upstream
+  * Update release location
+
+ -- Punit Agrawal <punitagrawal@gmail.com>  Sun, 06 Sep 2015 08:43:58 +0100
+
 direnv (2.6.1-2) unstable; urgency=medium
 
   * Fix error while nocheck buildpackage
