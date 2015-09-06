@@ -1,2 +1,2 @@
 version=3
-https://github.com/zimbatm/direnv/archive/v(.*)\.tar\.gz
+https://github.com/direnv/direnv/archive/v(.*)\.tar\.gz
