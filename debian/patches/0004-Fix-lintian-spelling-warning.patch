@@ -8,7 +8,7 @@ Subject: Fix lintian spelling warning
  2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/man/direnv.1 b/man/direnv.1
-index dc70f41..6b6ecaa 100644
+index 92103d1..221b8ef 100644
 --- a/man/direnv.1
 +++ b/man/direnv.1
 @@ -9,7 +9,7 @@ direnv \- unclutter your .profile
@@ -21,7 +21,7 @@ index dc70f41..6b6ecaa 100644
  .PP
  Before each prompt it checks for the existence of an ".envrc" file in the
 diff --git a/man/direnv.1.md b/man/direnv.1.md
-index d075c8c..917fca0 100644
+index c51a63a..c0c3d91 100644
 --- a/man/direnv.1.md
 +++ b/man/direnv.1.md
 @@ -16,7 +16,7 @@ DESCRIPTION
