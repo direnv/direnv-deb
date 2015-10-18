@@ -1,10 +1,10 @@
-direnv (2.7.0-1) UNRELEASED; urgency=medium
+direnv (2.7.0-1) unstable; urgency=medium
 
   * Imported Upstream version 2.7.0
   * Drop fix to 'dump' test that is merged upstream
   * Update release location
 
- -- Punit Agrawal <punitagrawal@gmail.com>  Sun, 06 Sep 2015 08:43:58 +0100
+ -- Punit Agrawal <punitagrawal@gmail.com>  Sun, 18 Oct 2015 12:54:12 +0100
 
 direnv (2.6.1-2) unstable; urgency=medium
 
