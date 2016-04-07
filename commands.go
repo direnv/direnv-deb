@@ -31,10 +31,13 @@ func init() {
 		CmdExport,
 		CmdHelp,
 		CmdHook,
+		CmdPrune,
 		CmdReload,
 		CmdStatus,
 		CmdStdlib,
 		CmdVersion,
+		CmdWatch,
+		CmdCurrent,
 	}
 }
 
