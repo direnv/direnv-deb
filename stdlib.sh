@@ -26,6 +26,29 @@ log_status() {
   fi
 }
 
+# Usage: log_error [<message> ...]
+#
+# Logs an error message. Acts like echo,
+# but wraps output in the standard direnv log format
+# (controlled by $DIRENV_LOG_FORMAT), and directs it
+# to stderr rather than stdout.
+#
+# Example:
+#
+#    log_error "Unable to find specified directory!"
+
+log_error() {
+  local color_normal
+  local color_error
+  color_normal=$(tput sgr0)
+  color_error="\e[0;31m"
+  if [[ -n $DIRENV_LOG_FORMAT ]]; then
+    local msg=$*
+    # shellcheck disable=SC2059
+    printf "${color_error}${DIRENV_LOG_FORMAT}${color_normal}\n" "$msg" >&2
+  fi
+}
+
 # Usage: has <command>
 #
 # Returns 0 if the <command> is available. Returns 1 otherwise. It can be a
@@ -61,7 +84,18 @@ expand_path() {
 # Loads a ".env" file into the current environment
 #
 dotenv() {
+  local path=$1
+  if [[ -z $path ]]; then
+    path=$PWD/.env
+  elif [[ -d $path ]]; then
+    path=$path/.env
+  fi
+  if ! [[ -f $path ]]; then
+    log_error ".env at $path not found"
+    return 1
+  fi
   eval "$("$direnv" dotenv bash "$@")"
+  watch_file "$path"
 }
 
 # Usage: user_rel_path <abs_path>
@@ -132,11 +166,15 @@ source_env() {
   if ! [[ -f $rcpath ]]; then
     rcpath=$rcpath/.envrc
   fi
+
   rcfile=$(user_rel_path "$rcpath")
+  watch_file "$rcpath"
+
   pushd "$(pwd -P 2>/dev/null)" > /dev/null
     pushd "$(dirname "$rcpath")" > /dev/null
     if [[ -f ./$(basename "$rcpath") ]]; then
       log_status "loading $rcfile"
+      # shellcheck source=/dev/null
       . "./$(basename "$rcpath")"
     else
       log_status "referenced $rcfile does not exist"
@@ -144,6 +182,18 @@ source_env() {
     popd > /dev/null
   popd > /dev/null
 }
+
+# Usage: watch_file <filename>
+#
+# Adds <path> to the list of files that direnv will watch for changes - useful when the contents
+# of a file influence how variables are set - especially in direnvrc
+#
+watch_file() {
+  local file=${1/#\~/$HOME}
+
+  eval "$($direnv watch "$file")"
+}
+
 
 # Usage: source_up [<filename>]
 #
@@ -218,7 +268,7 @@ path_add() {
 #
 # Expands some common path variables for the given <prefix_path> prefix. This is
 # useful if you installed something in the <prefix_path> using
-# $(./configure --prefix=<prefix_path> && make install) and want to use it in 
+# $(./configure --prefix=<prefix_path> && make install) and want to use it in
 # the project.
 #
 # Variables set:
@@ -380,13 +430,81 @@ use_rbenv() {
 rvm() {
   unset rvm
   if [[ -n ${rvm_scripts_path:-} ]]; then
+    # shellcheck source=/dev/null
     source "${rvm_scripts_path}/rvm"
   elif [[ -n ${rvm_path:-} ]]; then
+    # shellcheck source=/dev/null
     source "${rvm_path}/scripts/rvm"
   else
+    # shellcheck source=/dev/null
     source "$HOME/.rvm/scripts/rvm"
   fi
   rvm "$@"
+}
+
+# Usage: use node
+# Loads NodeJS version from a `.node-version` or `.nvmrc` file.
+#
+# Usage: use node <version>
+# Loads specified NodeJS version.
+#
+# If you specify a partial NodeJS version (i.e. `4.2`), a fuzzy match
+# is performed and the highest matching version installed is selected.
+#
+# Environment Variables:
+#
+# - $NODE_VERSIONS (required)
+#   You must specify a path to your installed NodeJS versions via the `$NODE_VERSIONS` variable.
+#
+# - $NODE_VERSION_PREFIX (optional) [default="node-v"]
+#   Overrides the default version prefix.
+
+use_node() {
+  local version=$1
+  local via=""
+  local node_wanted
+  local node_prefix
+
+  if [[ -z $NODE_VERSIONS ]] || [[ ! -d $NODE_VERSIONS ]]; then
+    log_error "You must specify a \$NODE_VERSIONS environment variable and the directory specified must exist!"
+    return 1
+  fi
+
+  if [[ -z $version ]] && [[ -f .nvmrc ]]; then
+    version=$(< .nvmrc)
+    via=".nvmrc"
+  fi
+
+  if [[ -z $version ]] && [[ -f .node-version ]]; then
+    version=$(< .node-version)
+    via=".node-version"
+  fi
+
+  if [[ -z $version ]]; then
+    log_error "I do not know which NodeJS version to load because one has not been specified!"
+    return 1
+  fi
+
+  node_wanted=${NODE_VERSION_PREFIX:-"node-v"}$version
+  node_prefix=$(find "$NODE_VERSIONS" -maxdepth 1 -mindepth 1 -type d -name "$node_wanted*" | sort -r -t . -k 1,1n -k 2,2n -k 3,3n | head -1)
+
+  if [[ ! -d $node_prefix ]]; then
+    log_error "Unable to find NodeJS version ($version) in ($NODE_VERSIONS)!"
+    return 1
+  fi
+
+  if [[ ! -x $node_prefix/bin/node ]]; then
+    log_error "Unable to load NodeJS binary (node) for version ($version) in ($NODE_VERSIONS)!"
+    return 1
+  fi
+
+  load_prefix "$node_prefix"
+
+  if [[ -z $via ]]; then
+    log_status "Successfully loaded NodeJS $(node --version), from prefix ($node_prefix)"
+  else
+    log_status "Successfully loaded NodeJS $(node --version) (via $via), from prefix ($node_prefix)"
+  fi
 }
 
 # Usage: use_nix [...]

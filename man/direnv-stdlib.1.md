@@ -167,6 +167,38 @@ Example:
 * `rvm` ...:
     Should work just like in the shell if you have rvm installed.
 
+* `use node`:
+    Loads NodeJS version from a `.node-version` or `.nvmrc` file.
+
+    If you specify a partial NodeJS version (i.e. `4.2`), a fuzzy
+    match is performed and the highest matching version installed
+    is selected.
+
+Example (.envrc):
+
+    set -e
+    use node
+
+Example (.node-version):
+
+    4.2
+
+* `use node` version:
+    Loads specified NodeJS version.
+
+Example (.envrc):
+
+    set -e
+    use node 4.2.2
+
+* `watch` path:
+    Adds a file to direnv's watch-list. If the file changes direnv will reload
+    the environment on the next prompt.
+
+Example (.envrc):
+
+    watch Gemfile
+
 COPYRIGHT
 ---------
 

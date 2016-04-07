@@ -8,7 +8,7 @@ environment variables and not clutter the "~/.profile" file.
 
 Before each prompt it checks for the existence of an ".envrc" file in the
 current and parent directories. If the file exists (and authorized), it is
-loaded into a bash sub-shell and all exported variables are then captured by
+loaded into a **bash** sub-shell and all exported variables are then captured by
 direnv and then made available the current shell.
 
 Because direnv is compiled into a single static executable it is fast enough
@@ -52,7 +52,8 @@ make install
 
 ### Packaged
 
-There's package definitions on Homebrew, Arch's AUR and NixOS's nixpkgs.
+There's package definitions on Homebrew, Arch's AUR, Gentoo go-overlay overlay
+and NixOS's nixpkgs.
 
 Links to binary builds are also available on
 [each release](https://github.com/direnv/direnv/releases).
@@ -102,6 +103,14 @@ eval `direnv hook tcsh`
 
 In some target folder, create an ".envrc" file and add some export(1)
 directives in it.
+
+Note that the contents of the `.envrc` file must be valid bash syntax,
+despite what shell you may be using.
+This is because direnv always executes the `.envrc` with bash (a sort of
+lowest common denominator of UNIX shells) so that direnv can work across shells.
+If you try to use some syntax that doesn't work in bash (like zsh's
+nested expansions), you will [run into
+trouble](https://github.com/direnv/direnv/issues/199).
 
 On the next prompt you will notice that direnv complains about the ".envrc"
 being blocked. This is the security mechanism to avoid loading new files
@@ -153,6 +162,7 @@ source_env ..
 
 * [Environment Modules](http://modules.sourceforge.net/) - one of the oldest (in a good way) environment loading system
 * [autoenv](https://github.com/kennethreitz/autoenv) - lightweight, doesn't support unloads
+* [zsh-autoenv](https://github.com/Tarrasch/zsh-autoenv) - a feature-rich mixture of autoenv and [smartcd](https://github.com/cxreg/smartcd): enter/leave events, nesting, stashing (Zsh-only).
 
 ## Contribute
 
@@ -164,9 +174,10 @@ All bugs or other forms of discussion happen on
 There is also a wiki available where you can share your usage patterns or
 other tips and tricks <https://github.com/direnv/direnv/wiki>
 
-Or drop by on
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/direnv/direnv?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
-to have a chat.
+Or drop by on [IRC (#direnv on freenode)](irc://irc.freenode.net/#direnv) to
+have a chat.
+<iframe src="http://webchat.freenode.net?randomnick=1&channels=%23direnv&uio=MTE9MTk117"
+width="647" height="400"></iframe>
 
 [![Build Status](https://api.travis-ci.org/direnv/direnv.png?branch=master)](http://travis-ci.org/direnv/direnv)
 

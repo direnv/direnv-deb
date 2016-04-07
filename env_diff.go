@@ -27,8 +27,12 @@ type EnvDiff struct {
 	Next map[string]string `json:"n"`
 }
 
+func NewEnvDiff() *EnvDiff {
+	return &EnvDiff{make(map[string]string), make(map[string]string)}
+}
+
 func BuildEnvDiff(e1, e2 Env) *EnvDiff {
-	diff := &EnvDiff{make(map[string]string), make(map[string]string)}
+	diff := NewEnvDiff()
 
 	in := func(key string, e Env) bool {
 		_, ok := e[key]
@@ -67,20 +71,20 @@ func (self *EnvDiff) Any() bool {
 }
 
 func (self *EnvDiff) ToShell(shell Shell) string {
-	str := ""
+	e := make(ShellExport)
 
 	for key := range self.Prev {
 		_, ok := self.Next[key]
 		if !ok {
-			str += shell.Unset(key)
+			e.Remove(key)
 		}
 	}
 
 	for key, value := range self.Next {
-		str += shell.Export(key, value)
+		e.Add(key, value)
 	}
 
-	return str
+	return shell.Export(e)
 }
 
 func (self *EnvDiff) Patch(env Env) (newEnv Env) {
