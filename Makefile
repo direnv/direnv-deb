@@ -3,6 +3,12 @@ DESTDIR ?= /usr/local
 MAN_MD = $(wildcard man/*.md)
 ROFFS = $(MAN_MD:.md=)
 
+ifeq ($(shell uname), Darwin)
+	# Fixes DYLD_INSERT_LIBRARIES issues
+	# See https://github.com/direnv/direnv/issues/194
+	GO_FLAGS += -ldflags -linkmode=external
+endif
+
 .PHONY: all man html test install dist
 #all: build man test
 all: build man
@@ -12,9 +18,9 @@ build: direnv
 stdlib.go: stdlib.sh
 	cat $< | ./script/str2go main STDLIB $< > $@
 
-direnv: *.go
+direnv: stdlib.go *.go
 	go fmt
-	go build -o direnv
+	go build $(GO_FLAGS) -o direnv
 
 clean:
 	rm -f direnv
@@ -37,6 +43,5 @@ install: all
 
 dist:
 	go get github.com/mitchellh/gox
-	gox -build-toolchain
-	gox -output "dist/{{.Dir}}.{{.OS}}-{{.Arch}}"
+	gox -output "dist/direnv.{{.OS}}-{{.Arch}}"
 

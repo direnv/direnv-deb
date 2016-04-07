@@ -28,6 +28,29 @@ const STDLIB = "#!bash\n" +
 	"  fi\n" +
 	"}\n" +
 	"\n" +
+	"# Usage: log_error [<message> ...]\n" +
+	"#\n" +
+	"# Logs an error message. Acts like echo,\n" +
+	"# but wraps output in the standard direnv log format\n" +
+	"# (controlled by $DIRENV_LOG_FORMAT), and directs it\n" +
+	"# to stderr rather than stdout.\n" +
+	"#\n" +
+	"# Example:\n" +
+	"#\n" +
+	"#    log_error \"Unable to find specified directory!\"\n" +
+	"\n" +
+	"log_error() {\n" +
+	"  local color_normal\n" +
+	"  local color_error\n" +
+	"  color_normal=$(tput sgr0)\n" +
+	"  color_error=\"\\e[0;31m\"\n" +
+	"  if [[ -n $DIRENV_LOG_FORMAT ]]; then\n" +
+	"    local msg=$*\n" +
+	"    # shellcheck disable=SC2059\n" +
+	"    printf \"${color_error}${DIRENV_LOG_FORMAT}${color_normal}\\n\" \"$msg\" >&2\n" +
+	"  fi\n" +
+	"}\n" +
+	"\n" +
 	"# Usage: has <command>\n" +
 	"#\n" +
 	"# Returns 0 if the <command> is available. Returns 1 otherwise. It can be a\n" +
@@ -63,7 +86,18 @@ const STDLIB = "#!bash\n" +
 	"# Loads a \".env\" file into the current environment\n" +
 	"#\n" +
 	"dotenv() {\n" +
+	"  local path=$1\n" +
+	"  if [[ -z $path ]]; then\n" +
+	"    path=$PWD/.env\n" +
+	"  elif [[ -d $path ]]; then\n" +
+	"    path=$path/.env\n" +
+	"  fi\n" +
+	"  if ! [[ -f $path ]]; then\n" +
+	"    log_error \".env at $path not found\"\n" +
+	"    return 1\n" +
+	"  fi\n" +
 	"  eval \"$(\"$direnv\" dotenv bash \"$@\")\"\n" +
+	"  watch_file \"$path\"\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: user_rel_path <abs_path>\n" +
@@ -134,11 +168,15 @@ const STDLIB = "#!bash\n" +
 	"  if ! [[ -f $rcpath ]]; then\n" +
 	"    rcpath=$rcpath/.envrc\n" +
 	"  fi\n" +
+	"\n" +
 	"  rcfile=$(user_rel_path \"$rcpath\")\n" +
+	"  watch_file \"$rcpath\"\n" +
+	"\n" +
 	"  pushd \"$(pwd -P 2>/dev/null)\" > /dev/null\n" +
 	"    pushd \"$(dirname \"$rcpath\")\" > /dev/null\n" +
 	"    if [[ -f ./$(basename \"$rcpath\") ]]; then\n" +
 	"      log_status \"loading $rcfile\"\n" +
+	"      # shellcheck source=/dev/null\n" +
 	"      . \"./$(basename \"$rcpath\")\"\n" +
 	"    else\n" +
 	"      log_status \"referenced $rcfile does not exist\"\n" +
@@ -146,6 +184,18 @@ const STDLIB = "#!bash\n" +
 	"    popd > /dev/null\n" +
 	"  popd > /dev/null\n" +
 	"}\n" +
+	"\n" +
+	"# Usage: watch_file <filename>\n" +
+	"#\n" +
+	"# Adds <path> to the list of files that direnv will watch for changes - useful when the contents\n" +
+	"# of a file influence how variables are set - especially in direnvrc\n" +
+	"#\n" +
+	"watch_file() {\n" +
+	"  local file=${1/#\\~/$HOME}\n" +
+	"\n" +
+	"  eval \"$($direnv watch \"$file\")\"\n" +
+	"}\n" +
+	"\n" +
 	"\n" +
 	"# Usage: source_up [<filename>]\n" +
 	"#\n" +
@@ -220,7 +270,7 @@ const STDLIB = "#!bash\n" +
 	"#\n" +
 	"# Expands some common path variables for the given <prefix_path> prefix. This is\n" +
 	"# useful if you installed something in the <prefix_path> using\n" +
-	"# $(./configure --prefix=<prefix_path> && make install) and want to use it in \n" +
+	"# $(./configure --prefix=<prefix_path> && make install) and want to use it in\n" +
 	"# the project.\n" +
 	"#\n" +
 	"# Variables set:\n" +
@@ -382,13 +432,81 @@ const STDLIB = "#!bash\n" +
 	"rvm() {\n" +
 	"  unset rvm\n" +
 	"  if [[ -n ${rvm_scripts_path:-} ]]; then\n" +
+	"    # shellcheck source=/dev/null\n" +
 	"    source \"${rvm_scripts_path}/rvm\"\n" +
 	"  elif [[ -n ${rvm_path:-} ]]; then\n" +
+	"    # shellcheck source=/dev/null\n" +
 	"    source \"${rvm_path}/scripts/rvm\"\n" +
 	"  else\n" +
+	"    # shellcheck source=/dev/null\n" +
 	"    source \"$HOME/.rvm/scripts/rvm\"\n" +
 	"  fi\n" +
 	"  rvm \"$@\"\n" +
+	"}\n" +
+	"\n" +
+	"# Usage: use node\n" +
+	"# Loads NodeJS version from a `.node-version` or `.nvmrc` file.\n" +
+	"#\n" +
+	"# Usage: use node <version>\n" +
+	"# Loads specified NodeJS version.\n" +
+	"#\n" +
+	"# If you specify a partial NodeJS version (i.e. `4.2`), a fuzzy match\n" +
+	"# is performed and the highest matching version installed is selected.\n" +
+	"#\n" +
+	"# Environment Variables:\n" +
+	"#\n" +
+	"# - $NODE_VERSIONS (required)\n" +
+	"#   You must specify a path to your installed NodeJS versions via the `$NODE_VERSIONS` variable.\n" +
+	"#\n" +
+	"# - $NODE_VERSION_PREFIX (optional) [default=\"node-v\"]\n" +
+	"#   Overrides the default version prefix.\n" +
+	"\n" +
+	"use_node() {\n" +
+	"  local version=$1\n" +
+	"  local via=\"\"\n" +
+	"  local node_wanted\n" +
+	"  local node_prefix\n" +
+	"\n" +
+	"  if [[ -z $NODE_VERSIONS ]] || [[ ! -d $NODE_VERSIONS ]]; then\n" +
+	"    log_error \"You must specify a \\$NODE_VERSIONS environment variable and the directory specified must exist!\"\n" +
+	"    return 1\n" +
+	"  fi\n" +
+	"\n" +
+	"  if [[ -z $version ]] && [[ -f .nvmrc ]]; then\n" +
+	"    version=$(< .nvmrc)\n" +
+	"    via=\".nvmrc\"\n" +
+	"  fi\n" +
+	"\n" +
+	"  if [[ -z $version ]] && [[ -f .node-version ]]; then\n" +
+	"    version=$(< .node-version)\n" +
+	"    via=\".node-version\"\n" +
+	"  fi\n" +
+	"\n" +
+	"  if [[ -z $version ]]; then\n" +
+	"    log_error \"I do not know which NodeJS version to load because one has not been specified!\"\n" +
+	"    return 1\n" +
+	"  fi\n" +
+	"\n" +
+	"  node_wanted=${NODE_VERSION_PREFIX:-\"node-v\"}$version\n" +
+	"  node_prefix=$(find \"$NODE_VERSIONS\" -maxdepth 1 -mindepth 1 -type d -name \"$node_wanted*\" | sort -r -t . -k 1,1n -k 2,2n -k 3,3n | head -1)\n" +
+	"\n" +
+	"  if [[ ! -d $node_prefix ]]; then\n" +
+	"    log_error \"Unable to find NodeJS version ($version) in ($NODE_VERSIONS)!\"\n" +
+	"    return 1\n" +
+	"  fi\n" +
+	"\n" +
+	"  if [[ ! -x $node_prefix/bin/node ]]; then\n" +
+	"    log_error \"Unable to load NodeJS binary (node) for version ($version) in ($NODE_VERSIONS)!\"\n" +
+	"    return 1\n" +
+	"  fi\n" +
+	"\n" +
+	"  load_prefix \"$node_prefix\"\n" +
+	"\n" +
+	"  if [[ -z $via ]]; then\n" +
+	"    log_status \"Successfully loaded NodeJS $(node --version), from prefix ($node_prefix)\"\n" +
+	"  else\n" +
+	"    log_status \"Successfully loaded NodeJS $(node --version) (via $via), from prefix ($node_prefix)\"\n" +
+	"  fi\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: use_nix [...]\n" +

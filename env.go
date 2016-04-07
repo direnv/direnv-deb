@@ -25,6 +25,12 @@ func GetEnv() Env {
 	return env
 }
 
+func (env Env) CleanContext() {
+	delete(env, DIRENV_DIR)
+	delete(env, DIRENV_WATCHES)
+	delete(env, DIRENV_DIFF)
+}
+
 func LoadEnv(base64env string) (env Env, err error) {
 	env = make(Env)
 	err = unmarshal(base64env, &env)
@@ -52,13 +58,13 @@ func (env Env) ToGoEnv() []string {
 }
 
 func (env Env) ToShell(shell Shell) string {
-	str := ""
+	e := make(ShellExport)
 
 	for key, value := range env {
-		str += shell.Export(key, value)
+		e.Add(key, value)
 	}
 
-	return str
+	return shell.Export(e)
 }
 
 func (env Env) Serialize() string {
