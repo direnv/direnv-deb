@@ -7,10 +7,10 @@ Subject: Update Makefile to use existing manpages
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Makefile b/Makefile
-index 8dd5398..6950d8f 100644
+index 95303a4..2d9f979 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -5,7 +5,7 @@ ROFFS = $(MAN_MD:.md=)
+@@ -11,7 +11,7 @@ endif
  
  .PHONY: all man html test install dist
  #all: build man test
