@@ -1,4 +1,4 @@
-direnv (2.8.1-1) UNRELEASED; urgency=medium
+direnv (2.8.1-1) unstable; urgency=medium
 
   * Imported Upstream version 2.8.1
   * Drop lintian spelling fix that is merged upstream
