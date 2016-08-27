@@ -1,3 +1,12 @@
+direnv (2.9.0-1) unstable; urgency=medium
+
+  * Fix watch file regular expression
+  * Update standards compliance to 3.9.8
+  * Use secure url for gitweb access to repo
+  * Imported Upstream version 2.9.0
+
+ -- Punit Agrawal <punitagrawal@gmail.com>  Sat, 27 Aug 2016 09:13:30 +0100
+
 direnv (2.8.1-1) unstable; urgency=medium
 
   * Imported Upstream version 2.8.1
