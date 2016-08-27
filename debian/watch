@@ -1,2 +1,2 @@
 version=3
-https://github.com/direnv/direnv/archive/v(.*)\.tar\.gz
+https://github.com/direnv/direnv/releases .*/archive/v(.*)\.tar\.gz
