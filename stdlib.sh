@@ -358,6 +358,11 @@ layout_python() {
   else
     local python_version
     python_version=$("$python" -c "import platform as p;print(p.python_version())")
+    if [[ -z $python_version ]]; then
+      log_error "Could not find python's version"
+      return 1
+    fi
+
     export VIRTUAL_ENV=$PWD/.direnv/python-$python_version
     if [[ ! -d $VIRTUAL_ENV ]]; then
       virtualenv "--python=$python" "$VIRTUAL_ENV"
@@ -485,7 +490,7 @@ use_node() {
     return 1
   fi
 
-  node_wanted=${NODE_VERSION_PREFIX:-"node-v"}$version
+  node_wanted=${NODE_VERSION_PREFIX-"node-v"}$version
   node_prefix=$(find "$NODE_VERSIONS" -maxdepth 1 -mindepth 1 -type d -name "$node_wanted*" | sort -r -t . -k 1,1n -k 2,2n -k 3,3n | head -1)
 
   if [[ ! -d $node_prefix ]]; then
@@ -516,6 +521,10 @@ use_node() {
 #
 use_nix() {
   direnv_load nix-shell --show-trace "$@" --run 'direnv dump'
+  if [[ $# = 0 ]]; then
+    watch_file default.nix
+    watch_file shell.nix
+  fi
 }
 
 ## Load the global ~/.direnvrc if present
