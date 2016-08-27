@@ -360,6 +360,11 @@ const STDLIB = "#!bash\n" +
 	"  else\n" +
 	"    local python_version\n" +
 	"    python_version=$(\"$python\" -c \"import platform as p;print(p.python_version())\")\n" +
+	"    if [[ -z $python_version ]]; then\n" +
+	"      log_error \"Could not find python's version\"\n" +
+	"      return 1\n" +
+	"    fi\n" +
+	"\n" +
 	"    export VIRTUAL_ENV=$PWD/.direnv/python-$python_version\n" +
 	"    if [[ ! -d $VIRTUAL_ENV ]]; then\n" +
 	"      virtualenv \"--python=$python\" \"$VIRTUAL_ENV\"\n" +
@@ -487,7 +492,7 @@ const STDLIB = "#!bash\n" +
 	"    return 1\n" +
 	"  fi\n" +
 	"\n" +
-	"  node_wanted=${NODE_VERSION_PREFIX:-\"node-v\"}$version\n" +
+	"  node_wanted=${NODE_VERSION_PREFIX-\"node-v\"}$version\n" +
 	"  node_prefix=$(find \"$NODE_VERSIONS\" -maxdepth 1 -mindepth 1 -type d -name \"$node_wanted*\" | sort -r -t . -k 1,1n -k 2,2n -k 3,3n | head -1)\n" +
 	"\n" +
 	"  if [[ ! -d $node_prefix ]]; then\n" +
@@ -518,6 +523,10 @@ const STDLIB = "#!bash\n" +
 	"#\n" +
 	"use_nix() {\n" +
 	"  direnv_load nix-shell --show-trace \"$@\" --run 'direnv dump'\n" +
+	"  if [[ $# = 0 ]]; then\n" +
+	"    watch_file default.nix\n" +
+	"    watch_file shell.nix\n" +
+	"  fi\n" +
 	"}\n" +
 	"\n" +
 	"## Load the global ~/.direnvrc if present\n" +
