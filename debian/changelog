@@ -1,3 +1,9 @@
+direnv (2.10.0-1) unstable; urgency=medium
+
+  * New upstream version 2.10.0
+
+ -- Punit Agrawal <punitagrawal@gmail.com>  Wed, 14 Dec 2016 07:18:22 +0000
+
 direnv (2.9.0-1) unstable; urgency=medium
 
   * Fix watch file regular expression
