@@ -251,17 +251,17 @@ PATH_add() {
 #
 # Works like PATH_add except that it's for an arbitrary <varname>.
 path_add() {
-  local old_paths=${!1}
+  local old_paths="${!1}"
   local dir
   dir=$(expand_path "$2")
 
   if [[ -z $old_paths ]]; then
-    old_paths=$dir
+    old_paths="$dir"
   else
-    old_paths=$dir:$old_paths
+    old_paths="$dir:$old_paths"
   fi
 
-  export $1=$old_paths
+  export "$1=$old_paths"
 }
 
 # Usage: load_prefix <prefix_path>
@@ -525,6 +525,20 @@ use_nix() {
     watch_file default.nix
     watch_file shell.nix
   fi
+}
+
+# Usage: use_guix [...]
+#
+# Load environment variables from `guix environment`.
+# Any arguments given will be passed to guix environment. For example,
+# `use guix hello` would setup an environment with the dependencies of
+# the hello package. To create an environment including hello, the
+# `--ad-hoc` flag is used `use guix --ad-hoc hello`. Other options
+# include `--load` which allows loading an environment from a
+# file. For a full list of options, consult the documentation for the
+# `guix environment` command.
+use_guix() {
+  eval "$(guix environment "$@" --search-paths)"
 }
 
 ## Load the global ~/.direnvrc if present
