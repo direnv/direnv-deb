@@ -7,7 +7,7 @@ Subject: Respect prefix in addition to DESTDIR in Makefile
  1 file changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/Makefile b/Makefile
-index 6d6f341..729e5ed 100644
+index f2adcab..0d3db68 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -1,4 +1,4 @@
@@ -16,7 +16,7 @@ index 6d6f341..729e5ed 100644
  
  MAN_MD = $(wildcard man/*.md)
  ROFFS = $(MAN_MD:.md=)
-@@ -36,10 +36,10 @@ test: build
+@@ -50,10 +50,10 @@ test: build
  	./test/direnv-test.sh
  
  install: all

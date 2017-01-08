@@ -1,0 +1,23 @@
+From: Punit Agrawal <punitagrawal@gmail.com>
+Date: Sun, 8 Jan 2017 18:59:14 +0000
+Subject: Escape '.' at the beginning of line to remove manpage warning
+
+'.' at the beginning of a line in a manpage indicates macro
+usage. Escape it with '\' to remove a missing macro warning.
+---
+ man/direnv.1.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/man/direnv.1.md b/man/direnv.1.md
+index c0c3d91..a14ef0e 100644
+--- a/man/direnv.1.md
++++ b/man/direnv.1.md
+@@ -36,7 +36,7 @@ $ cd ~/my_project
+ $ echo ${FOO-nope}
+ nope
+ $ echo export FOO=foo > .envrc
+-.envrc is not allowed
++\.envrc is not allowed
+ $ direnv allow .
+ direnv: reloading
+ direnv: loading .envrc
