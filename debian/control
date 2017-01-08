@@ -6,8 +6,8 @@ Build-Depends: debhelper (>= 9.0.0),
  golang-go, golang-src, go-md2man
 Standards-Version: 3.9.8
 Homepage: http://direnv.net/
-Vcs-Git: git://anonscm.debian.org/collab-maint/direnv.git
-Vcs-Browser: https://anonscm.debian.org/gitweb/?p=collab-maint/direnv.git
+Vcs-Git: https://github.com/punitagrawal/direnv.git
+Vcs-Browser: https://github.com/punitagrawal/direnv
 
 Package: direnv
 Architecture: any
