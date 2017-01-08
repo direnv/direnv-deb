@@ -1,3 +1,12 @@
+direnv (2.10.0-2) unstable; urgency=medium
+
+  * Add go-md2man as dependency
+  * Enable building manpages
+  * Fix lintian warning in manpage
+  * Update package repository location
+
+ -- Punit Agrawal <punitagrawal@gmail.com>  Sun, 08 Jan 2017 19:21:10 +0000
+
 direnv (2.10.0-1) unstable; urgency=medium
 
   * New upstream version 2.10.0
