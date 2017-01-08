@@ -253,17 +253,17 @@ const STDLIB = "#!bash\n" +
 	"#\n" +
 	"# Works like PATH_add except that it's for an arbitrary <varname>.\n" +
 	"path_add() {\n" +
-	"  local old_paths=${!1}\n" +
+	"  local old_paths=\"${!1}\"\n" +
 	"  local dir\n" +
 	"  dir=$(expand_path \"$2\")\n" +
 	"\n" +
 	"  if [[ -z $old_paths ]]; then\n" +
-	"    old_paths=$dir\n" +
+	"    old_paths=\"$dir\"\n" +
 	"  else\n" +
-	"    old_paths=$dir:$old_paths\n" +
+	"    old_paths=\"$dir:$old_paths\"\n" +
 	"  fi\n" +
 	"\n" +
-	"  export $1=$old_paths\n" +
+	"  export \"$1=$old_paths\"\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: load_prefix <prefix_path>\n" +
@@ -527,6 +527,20 @@ const STDLIB = "#!bash\n" +
 	"    watch_file default.nix\n" +
 	"    watch_file shell.nix\n" +
 	"  fi\n" +
+	"}\n" +
+	"\n" +
+	"# Usage: use_guix [...]\n" +
+	"#\n" +
+	"# Load environment variables from `guix environment`.\n" +
+	"# Any arguments given will be passed to guix environment. For example,\n" +
+	"# `use guix hello` would setup an environment with the dependencies of\n" +
+	"# the hello package. To create an environment including hello, the\n" +
+	"# `--ad-hoc` flag is used `use guix --ad-hoc hello`. Other options\n" +
+	"# include `--load` which allows loading an environment from a\n" +
+	"# file. For a full list of options, consult the documentation for the\n" +
+	"# `guix environment` command.\n" +
+	"use_guix() {\n" +
+	"  eval \"$(guix environment \"$@\" --search-paths)\"\n" +
 	"}\n" +
 	"\n" +
 	"## Load the global ~/.direnvrc if present\n" +
