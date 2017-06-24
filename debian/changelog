@@ -1,3 +1,11 @@
+direnv (2.11.3-1) unstable; urgency=medium
+
+  * New upstream version 2.11.3
+  * Update to standards version 4.0.0
+  * Update maintainer email
+
+ -- Punit Agrawal <punit@debian.org>  Sat, 24 Jun 2017 18:06:47 +0100
+
 direnv (2.10.0-2) unstable; urgency=medium
 
   * Add go-md2man as dependency
