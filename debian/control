@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Punit Agrawal <punitagrawal@gmail.com>
 Build-Depends: debhelper (>= 9.0.0),
  golang-go, golang-src, go-md2man
-Standards-Version: 3.9.8
+Standards-Version: 4.0.0
 Homepage: http://direnv.net/
 Vcs-Git: https://github.com/punitagrawal/direnv.git
 Vcs-Browser: https://github.com/punitagrawal/direnv
