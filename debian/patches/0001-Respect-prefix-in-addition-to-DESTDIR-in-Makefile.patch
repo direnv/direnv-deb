@@ -7,7 +7,7 @@ Subject: Respect prefix in addition to DESTDIR in Makefile
  1 file changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/Makefile b/Makefile
-index f2adcab..0d3db68 100644
+index af2efd4..3e7fe16 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -1,4 +1,4 @@
