@@ -1,4 +1,28 @@
 
+2.11.3 / 2017-03-02
+==================
+
+  * FIX: node version sorting (#255)
+
+2.11.2 / 2017-03-01
+==================
+
+  * FIX: Typo in MANPATH_add always generates "PATH missing" error. (#256)
+
+2.11.1 / 2017-02-20
+==================
+
+  * FIX: only deploy the go 1.8 version
+
+2.11.0 / 2017-02-20
+==================
+
+  * NEW: stdlib.sh: introduce MANPATH_add <path> (#248)
+  * NEW: provide packages using the equinox service
+  * CHANGE: test direnv with go 1.8 (#254)
+  * FIX: Add warning about source_env/up
+  * FIX: go-md2man install instruction
+
 2.10.0 / 2016-12-10
 ==================
 
