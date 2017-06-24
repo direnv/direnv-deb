@@ -162,6 +162,8 @@ const STDLIB = "#!bash\n" +
 	"# Usage: source_env <file_or_dir_path>\n" +
 	"#\n" +
 	"# Loads another \".envrc\" either by specifying its path or filename.\n" +
+	"#\n" +
+	"# NOTE: the other \".envrc\" is not checked by the security framework.\n" +
 	"source_env() {\n" +
 	"  local rcpath=${1/#\\~/$HOME}\n" +
 	"  local rcfile\n" +
@@ -201,6 +203,7 @@ const STDLIB = "#!bash\n" +
 	"#\n" +
 	"# Loads another \".envrc\" if found with the find_up command.\n" +
 	"#\n" +
+	"# NOTE: the other \".envrc\" is not checked by the security framework.\n" +
 	"source_up() {\n" +
 	"  local file=$1\n" +
 	"  local dir\n" +
@@ -266,6 +269,22 @@ const STDLIB = "#!bash\n" +
 	"  export \"$1=$old_paths\"\n" +
 	"}\n" +
 	"\n" +
+	"# Usage: MANPATH_add <path>\n" +
+	"#\n" +
+	"# Prepends a path to the MANPATH environment variable while making sure that\n" +
+	"# `man` can still lookup the system manual pages.\n" +
+	"#\n" +
+	"# If MANPATH is not empty, man will only look in MANPATH.\n" +
+	"# So if we set MANPATH=$path, man will only look in $path.\n" +
+	"# Instead, prepend to `man -w` (which outputs man's default paths).\n" +
+	"#\n" +
+	"MANPATH_add() {\n" +
+	"  local old_paths=\"${MANPATH:-$(man -w)}\"\n" +
+	"  local dir\n" +
+	"  dir=$(expand_path \"$1\")\n" +
+	"  export \"MANPATH=$dir:$old_paths\"\n" +
+	"}\n" +
+	"\n" +
 	"# Usage: load_prefix <prefix_path>\n" +
 	"#\n" +
 	"# Expands some common path variables for the given <prefix_path> prefix. This is\n" +
@@ -292,11 +311,11 @@ const STDLIB = "#!bash\n" +
 	"load_prefix() {\n" +
 	"  local dir\n" +
 	"  dir=$(expand_path \"$1\")\n" +
+	"  MANPATH_add \"$dir/man\"\n" +
+	"  MANPATH_add \"$dir/share/man\"\n" +
 	"  path_add CPATH \"$dir/include\"\n" +
 	"  path_add LD_LIBRARY_PATH \"$dir/lib\"\n" +
 	"  path_add LIBRARY_PATH \"$dir/lib\"\n" +
-	"  path_add MANPATH \"$dir/man\"\n" +
-	"  path_add MANPATH \"$dir/share/man\"\n" +
 	"  path_add PATH \"$dir/bin\"\n" +
 	"  path_add PKG_CONFIG_PATH \"$dir/lib/pkgconfig\"\n" +
 	"}\n" +
@@ -469,6 +488,7 @@ const STDLIB = "#!bash\n" +
 	"use_node() {\n" +
 	"  local version=$1\n" +
 	"  local via=\"\"\n" +
+	"  local node_version_prefix=${NODE_VERSION_PREFIX:-node-v}\n" +
 	"  local node_wanted\n" +
 	"  local node_prefix\n" +
 	"\n" +
@@ -492,8 +512,23 @@ const STDLIB = "#!bash\n" +
 	"    return 1\n" +
 	"  fi\n" +
 	"\n" +
-	"  node_wanted=${NODE_VERSION_PREFIX-\"node-v\"}$version\n" +
-	"  node_prefix=$(find \"$NODE_VERSIONS\" -maxdepth 1 -mindepth 1 -type d -name \"$node_wanted*\" | sort -r -t . -k 1,1n -k 2,2n -k 3,3n | head -1)\n" +
+	"  node_wanted=${node_version_prefix}${version}\n" +
+	"  node_prefix=$(\n" +
+	"    # Look for matching node versions in $NODE_VERSIONS path\n" +
+	"    find \"$NODE_VERSIONS\" -maxdepth 1 -mindepth 1 -type d -name \"$node_wanted*\" |\n" +
+	"\n" +
+	"    # Strip possible \"/\" suffix from $NODE_VERSIONS, then use that to\n" +
+	"    # Strip $NODE_VERSIONS/$NODE_VERSION_PREFIX prefix from line.\n" +
+	"    while IFS= read -r line; do echo \"${line#${NODE_VERSIONS%/}/${node_version_prefix}}\"; done |\n" +
+	"\n" +
+	"    # Sort by version: split by \".\" then reverse numeric sort for each piece of the version string\n" +
+	"    sort -t . -k 1,1rn -k 2,2rn -k 3,3rn |\n" +
+	"\n" +
+	"    # The first one is the highest\n" +
+	"    head -1\n" +
+	"  )\n" +
+	"\n" +
+	"  node_prefix=\"${NODE_VERSIONS}/${node_version_prefix}${node_prefix}\"\n" +
 	"\n" +
 	"  if [[ ! -d $node_prefix ]]; then\n" +
 	"    log_error \"Unable to find NodeJS version ($version) in ($NODE_VERSIONS)!\"\n" +

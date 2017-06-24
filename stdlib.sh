@@ -160,6 +160,8 @@ find_up() {
 # Usage: source_env <file_or_dir_path>
 #
 # Loads another ".envrc" either by specifying its path or filename.
+#
+# NOTE: the other ".envrc" is not checked by the security framework.
 source_env() {
   local rcpath=${1/#\~/$HOME}
   local rcfile
@@ -199,6 +201,7 @@ watch_file() {
 #
 # Loads another ".envrc" if found with the find_up command.
 #
+# NOTE: the other ".envrc" is not checked by the security framework.
 source_up() {
   local file=$1
   local dir
@@ -264,6 +267,22 @@ path_add() {
   export "$1=$old_paths"
 }
 
+# Usage: MANPATH_add <path>
+#
+# Prepends a path to the MANPATH environment variable while making sure that
+# `man` can still lookup the system manual pages.
+#
+# If MANPATH is not empty, man will only look in MANPATH.
+# So if we set MANPATH=$path, man will only look in $path.
+# Instead, prepend to `man -w` (which outputs man's default paths).
+#
+MANPATH_add() {
+  local old_paths="${MANPATH:-$(man -w)}"
+  local dir
+  dir=$(expand_path "$1")
+  export "MANPATH=$dir:$old_paths"
+}
+
 # Usage: load_prefix <prefix_path>
 #
 # Expands some common path variables for the given <prefix_path> prefix. This is
@@ -290,11 +309,11 @@ path_add() {
 load_prefix() {
   local dir
   dir=$(expand_path "$1")
+  MANPATH_add "$dir/man"
+  MANPATH_add "$dir/share/man"
   path_add CPATH "$dir/include"
   path_add LD_LIBRARY_PATH "$dir/lib"
   path_add LIBRARY_PATH "$dir/lib"
-  path_add MANPATH "$dir/man"
-  path_add MANPATH "$dir/share/man"
   path_add PATH "$dir/bin"
   path_add PKG_CONFIG_PATH "$dir/lib/pkgconfig"
 }
@@ -467,6 +486,7 @@ rvm() {
 use_node() {
   local version=$1
   local via=""
+  local node_version_prefix=${NODE_VERSION_PREFIX:-node-v}
   local node_wanted
   local node_prefix
 
@@ -490,8 +510,23 @@ use_node() {
     return 1
   fi
 
-  node_wanted=${NODE_VERSION_PREFIX-"node-v"}$version
-  node_prefix=$(find "$NODE_VERSIONS" -maxdepth 1 -mindepth 1 -type d -name "$node_wanted*" | sort -r -t . -k 1,1n -k 2,2n -k 3,3n | head -1)
+  node_wanted=${node_version_prefix}${version}
+  node_prefix=$(
+    # Look for matching node versions in $NODE_VERSIONS path
+    find "$NODE_VERSIONS" -maxdepth 1 -mindepth 1 -type d -name "$node_wanted*" |
+
+    # Strip possible "/" suffix from $NODE_VERSIONS, then use that to
+    # Strip $NODE_VERSIONS/$NODE_VERSION_PREFIX prefix from line.
+    while IFS= read -r line; do echo "${line#${NODE_VERSIONS%/}/${node_version_prefix}}"; done |
+
+    # Sort by version: split by "." then reverse numeric sort for each piece of the version string
+    sort -t . -k 1,1rn -k 2,2rn -k 3,3rn |
+
+    # The first one is the highest
+    head -1
+  )
+
+  node_prefix="${NODE_VERSIONS}/${node_version_prefix}${node_prefix}"
 
   if [[ ! -d $node_prefix ]]; then
     log_error "Unable to find NodeJS version ($version) in ($NODE_VERSIONS)!"
