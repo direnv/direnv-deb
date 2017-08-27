@@ -5,8 +5,15 @@
 # export DH_VERBOSE=1
 
 %:
-	dh $@
+	dh $@ --buildsystem=golang --with=golang
 
-override_dh_auto_test:
-	HOME=$(CURDIR)/tmp dh_auto_test -a
-	rm -rf $(CURDIR)/tmp
+override_dh_auto_build:
+	dh_auto_build
+	make man
+
+override_dh_auto_install:
+	dh_auto_install -- --no-source
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -f man/*.1

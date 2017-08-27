@@ -3,14 +3,17 @@ Section: utils
 Priority: optional
 Maintainer: Punit Agrawal <punit@debian.org>
 Build-Depends: debhelper (>= 9.0.0),
- golang-go, golang-src, go-md2man
+	       dh-golang, golang-any,
+	       go-md2man
 Standards-Version: 4.0.0
 Homepage: http://direnv.net/
 Vcs-Git: https://github.com/punitagrawal/direnv.git
 Vcs-Browser: https://github.com/punitagrawal/direnv
+XS-Go-Import-Path: github.com/direnv/direnv
 
 Package: direnv
 Architecture: any
+Built-Using: ${misc:Built-Using}
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Utility to set directory specific environment variables
  direnv is an environment variable manager for your shell. It knows
