@@ -1,3 +1,12 @@
+direnv (2.12.2-1) unstable; urgency=medium
+
+  * New upstream version 2.12.2
+  * Migrate package to using golang buildsystem
+  * Update debhelper to version 10.0.0
+  * Drop Makefile patch to respect PREFIX
+
+ -- Punit Agrawal <punit@debian.org>  Mon, 28 Aug 2017 10:12:06 +0100
+
 direnv (2.11.3-1) unstable; urgency=medium
 
   * New upstream version 2.11.3
