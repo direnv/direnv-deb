@@ -43,7 +43,7 @@ const STDLIB = "#!bash\n" +
 	"  local color_normal\n" +
 	"  local color_error\n" +
 	"  color_normal=$(tput sgr0)\n" +
-	"  color_error=\"\\e[0;31m\"\n" +
+	"  color_error=$(tput setaf 1)\n" +
 	"  if [[ -n $DIRENV_LOG_FORMAT ]]; then\n" +
 	"    local msg=$*\n" +
 	"    # shellcheck disable=SC2059\n" +
@@ -195,7 +195,7 @@ const STDLIB = "#!bash\n" +
 	"watch_file() {\n" +
 	"  local file=${1/#\\~/$HOME}\n" +
 	"\n" +
-	"  eval \"$($direnv watch \"$file\")\"\n" +
+	"  eval \"$(\"$direnv\" watch \"$file\")\"\n" +
 	"}\n" +
 	"\n" +
 	"\n" +
@@ -234,39 +234,48 @@ const STDLIB = "#!bash\n" +
 	"  eval \"$exports\"\n" +
 	"}\n" +
 	"\n" +
-	"# Usage: PATH_add <path>\n" +
+	"# Usage: PATH_add <path> [<path> ...]\n" +
 	"#\n" +
-	"# Prepends the expanded <path> to the PATH environment variable. It prevents a\n" +
-	"# common mistake where PATH is replaced by only the new <path>.\n" +
+	"# Prepends the expanded <path> to the PATH environment variable, in order.\n" +
+	"# It prevents a common mistake where PATH is replaced by only the new <path>,\n" +
+	"# or where a trailing colon is left in PATH, resulting in the current directory\n" +
+	"# being considered in the PATH.  Supports adding multiple directories at once.\n" +
 	"#\n" +
 	"# Example:\n" +
 	"#\n" +
 	"#    pwd\n" +
-	"#    # output: /home/user/my/project\n" +
+	"#    # output: /my/project\n" +
 	"#    PATH_add bin\n" +
 	"#    echo $PATH\n" +
-	"#    # output: /home/user/my/project/bin:/usr/bin:/bin\n" +
+	"#    # output: /my/project/bin:/usr/bin:/bin\n" +
+	"#    PATH_add bam boum\n" +
+	"#    echo $PATH\n" +
+	"#    # output: /my/project/bam:/my/project/boum:/my/project/bin:/usr/bin:/bin\n" +
 	"#\n" +
 	"PATH_add() {\n" +
-	"  PATH=$(expand_path \"$1\"):$PATH\n" +
-	"  export PATH\n" +
+	"  path_add PATH \"$@\"\n" +
 	"}\n" +
 	"\n" +
-	"# Usage: path_add <varname> <path>\n" +
+	"# Usage: path_add <varname> <path> [<path> ...]\n" +
 	"#\n" +
 	"# Works like PATH_add except that it's for an arbitrary <varname>.\n" +
 	"path_add() {\n" +
-	"  local old_paths=\"${!1}\"\n" +
-	"  local dir\n" +
-	"  dir=$(expand_path \"$2\")\n" +
+	"  local var_name=\"$1\"\n" +
+	"  # split existing paths into an array\n" +
+	"  declare -a path_array\n" +
+	"  IFS=: read -ra path_array <<< \"${!1}\"\n" +
+	"  shift\n" +
 	"\n" +
-	"  if [[ -z $old_paths ]]; then\n" +
-	"    old_paths=\"$dir\"\n" +
-	"  else\n" +
-	"    old_paths=\"$dir:$old_paths\"\n" +
-	"  fi\n" +
+	"  # prepend the passed paths in the right order\n" +
+	"  for (( i=$# ; i>0 ; i-- )); do\n" +
+	"    path_array=( \"$(expand_path \"${!i}\")\" \"${path_array[@]}\" )\n" +
+	"  done\n" +
 	"\n" +
-	"  export \"$1=$old_paths\"\n" +
+	"  # join back all the paths\n" +
+	"  local path=$(IFS=:; echo \"${path_array[*]}\")\n" +
+	"\n" +
+	"  # and finally export back the result to the original variable\n" +
+	"  export \"$var_name=$path\"\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: MANPATH_add <path>\n" +
@@ -372,6 +381,7 @@ const STDLIB = "#!bash\n" +
 	"#\n" +
 	"layout_python() {\n" +
 	"  local python=${1:-python}\n" +
+	"  [[ $# -gt 0 ]] && shift\n" +
 	"  local old_env=$PWD/.direnv/virtualenv\n" +
 	"  unset PYTHONHOME\n" +
 	"  if [[ -d $old_env && $python = python ]]; then\n" +
@@ -386,10 +396,18 @@ const STDLIB = "#!bash\n" +
 	"\n" +
 	"    export VIRTUAL_ENV=$PWD/.direnv/python-$python_version\n" +
 	"    if [[ ! -d $VIRTUAL_ENV ]]; then\n" +
-	"      virtualenv \"--python=$python\" \"$VIRTUAL_ENV\"\n" +
+	"      virtualenv \"--python=$python\" \"$@\" \"$VIRTUAL_ENV\"\n" +
 	"    fi\n" +
 	"  fi\n" +
 	"  PATH_add \"$VIRTUAL_ENV/bin\"\n" +
+	"}\n" +
+	"\n" +
+	"# Usage: layout python2\n" +
+	"#\n" +
+	"# A shortcut for $(layout python python2)\n" +
+	"#\n" +
+	"layout_python2() {\n" +
+	"  layout_python python2 \"$@\"\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: layout python3\n" +
@@ -397,7 +415,7 @@ const STDLIB = "#!bash\n" +
 	"# A shortcut for $(layout python python3)\n" +
 	"#\n" +
 	"layout_python3() {\n" +
-	"  layout_python python3\n" +
+	"  layout_python python3 \"$@\"\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: layout ruby\n" +

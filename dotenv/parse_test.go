@@ -1,7 +1,9 @@
-package main
+package dotenv_test
 
 import (
 	"testing"
+
+	"github.com/direnv/direnv/dotenv"
 )
 
 // See the reference implementation:
@@ -10,17 +12,21 @@ import (
 // TODO: support comments at the end of a line
 
 const TEST_EXPORTED = `export OPTION_A=2
-export OPTION_B='\n'
+export OPTION_B='\n' # foo
+#export OPTION_C=3
 `
 
 func TestDotEnvExported(t *testing.T) {
-	env := ParseDotEnv(TEST_EXPORTED)
+	env := dotenv.MustParse(TEST_EXPORTED)
 
 	if env["OPTION_A"] != "2" {
-		//t.Fail()
+		t.Error("OPTION_A")
 	}
 	if env["OPTION_B"] != "\\n" {
-		t.Fail()
+		t.Error("OPTION_B")
+	}
+	if env["OPTION_C"] != "" {
+		t.Error("OPTION_C", env["OPTION_C"])
 	}
 }
 
@@ -32,22 +38,22 @@ OPTION_E = 5
 `
 
 func TestDotEnvPlain(t *testing.T) {
-	env := ParseDotEnv(TEST_PLAIN)
+	env := dotenv.MustParse(TEST_PLAIN)
 
 	if env["OPTION_A"] != "1" {
-		t.Fail()
+		t.Error("OPTION_A")
 	}
 	if env["OPTION_B"] != "2" {
-		t.Fail()
+		t.Error("OPTION_B")
 	}
 	if env["OPTION_C"] != "3" {
-		t.Fail()
+		t.Error("OPTION_C")
 	}
 	if env["OPTION_D"] != "4" {
-		t.Fail()
+		t.Error("OPTION_D")
 	}
 	if env["OPTION_E"] != "5" {
-		t.Fail()
+		t.Error("OPTION_E")
 	}
 }
 
@@ -59,34 +65,38 @@ OPTION_E="1"
 OPTION_F="2"
 OPTION_G=""
 OPTION_H="\n"
+#OPTION_I="3"
 `
 
 func TestDotEnvQuoted(t *testing.T) {
-	env := ParseDotEnv(TEST_QUOTED)
+	env := dotenv.MustParse(TEST_QUOTED)
 
 	if env["OPTION_A"] != "1" {
-		t.Fail()
+		t.Error("OPTION_A")
 	}
 	if env["OPTION_B"] != "2" {
-		t.Fail()
+		t.Error("OPTION_B")
 	}
 	if env["OPTION_C"] != "" {
-		t.Fail()
+		t.Error("OPTION_C")
 	}
 	if env["OPTION_D"] != "\\n" {
-		t.Fail()
+		t.Error("OPTION_D")
 	}
 	if env["OPTION_E"] != "1" {
-		t.Fail()
+		t.Error("OPTION_E")
 	}
 	if env["OPTION_F"] != "2" {
-		t.Fail()
+		t.Error("OPTION_F")
 	}
 	if env["OPTION_G"] != "" {
-		t.Fail()
+		t.Error("OPTION_G")
 	}
 	if env["OPTION_H"] != "\n" {
-		t.Fail()
+		t.Error("OPTION_H")
+	}
+	if env["OPTION_I"] != "" {
+		t.Error("OPTION_I")
 	}
 }
 
@@ -94,21 +104,25 @@ const TEST_YAML = `OPTION_A: 1
 OPTION_B: '2'
 OPTION_C: ''
 OPTION_D: '\n'
+#OPTION_E: '333'
 `
 
 func TestDotEnvYAML(t *testing.T) {
-	env := ParseDotEnv(TEST_YAML)
+	env := dotenv.MustParse(TEST_YAML)
 
 	if env["OPTION_A"] != "1" {
-		t.Fail()
+		t.Error("OPTION_A")
 	}
 	if env["OPTION_B"] != "2" {
-		t.Fail()
+		t.Error("OPTION_B")
 	}
 	if env["OPTION_C"] != "" {
-		t.Fail()
+		t.Error("OPTION_C")
 	}
 	if env["OPTION_D"] != "\\n" {
-		t.Fail()
+		t.Error("OPTION_D")
+	}
+	if env["OPTION_E"] != "" {
+		t.Error("OPTION_E")
 	}
 }

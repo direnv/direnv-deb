@@ -41,7 +41,7 @@ log_error() {
   local color_normal
   local color_error
   color_normal=$(tput sgr0)
-  color_error="\e[0;31m"
+  color_error=$(tput setaf 1)
   if [[ -n $DIRENV_LOG_FORMAT ]]; then
     local msg=$*
     # shellcheck disable=SC2059
@@ -193,7 +193,7 @@ source_env() {
 watch_file() {
   local file=${1/#\~/$HOME}
 
-  eval "$($direnv watch "$file")"
+  eval "$("$direnv" watch "$file")"
 }
 
 
@@ -232,39 +232,48 @@ direnv_load() {
   eval "$exports"
 }
 
-# Usage: PATH_add <path>
+# Usage: PATH_add <path> [<path> ...]
 #
-# Prepends the expanded <path> to the PATH environment variable. It prevents a
-# common mistake where PATH is replaced by only the new <path>.
+# Prepends the expanded <path> to the PATH environment variable, in order.
+# It prevents a common mistake where PATH is replaced by only the new <path>,
+# or where a trailing colon is left in PATH, resulting in the current directory
+# being considered in the PATH.  Supports adding multiple directories at once.
 #
 # Example:
 #
 #    pwd
-#    # output: /home/user/my/project
+#    # output: /my/project
 #    PATH_add bin
 #    echo $PATH
-#    # output: /home/user/my/project/bin:/usr/bin:/bin
+#    # output: /my/project/bin:/usr/bin:/bin
+#    PATH_add bam boum
+#    echo $PATH
+#    # output: /my/project/bam:/my/project/boum:/my/project/bin:/usr/bin:/bin
 #
 PATH_add() {
-  PATH=$(expand_path "$1"):$PATH
-  export PATH
+  path_add PATH "$@"
 }
 
-# Usage: path_add <varname> <path>
+# Usage: path_add <varname> <path> [<path> ...]
 #
 # Works like PATH_add except that it's for an arbitrary <varname>.
 path_add() {
-  local old_paths="${!1}"
-  local dir
-  dir=$(expand_path "$2")
+  local var_name="$1"
+  # split existing paths into an array
+  declare -a path_array
+  IFS=: read -ra path_array <<< "${!1}"
+  shift
 
-  if [[ -z $old_paths ]]; then
-    old_paths="$dir"
-  else
-    old_paths="$dir:$old_paths"
-  fi
+  # prepend the passed paths in the right order
+  for (( i=$# ; i>0 ; i-- )); do
+    path_array=( "$(expand_path "${!i}")" "${path_array[@]}" )
+  done
 
-  export "$1=$old_paths"
+  # join back all the paths
+  local path=$(IFS=:; echo "${path_array[*]}")
+
+  # and finally export back the result to the original variable
+  export "$var_name=$path"
 }
 
 # Usage: MANPATH_add <path>
@@ -370,6 +379,7 @@ layout_perl() {
 #
 layout_python() {
   local python=${1:-python}
+  [[ $# -gt 0 ]] && shift
   local old_env=$PWD/.direnv/virtualenv
   unset PYTHONHOME
   if [[ -d $old_env && $python = python ]]; then
@@ -384,10 +394,18 @@ layout_python() {
 
     export VIRTUAL_ENV=$PWD/.direnv/python-$python_version
     if [[ ! -d $VIRTUAL_ENV ]]; then
-      virtualenv "--python=$python" "$VIRTUAL_ENV"
+      virtualenv "--python=$python" "$@" "$VIRTUAL_ENV"
     fi
   fi
   PATH_add "$VIRTUAL_ENV/bin"
+}
+
+# Usage: layout python2
+#
+# A shortcut for $(layout python python2)
+#
+layout_python2() {
+  layout_python python2 "$@"
 }
 
 # Usage: layout python3
@@ -395,7 +413,7 @@ layout_python() {
 # A shortcut for $(layout python python3)
 #
 layout_python3() {
-  layout_python python3
+  layout_python python3 "$@"
 }
 
 # Usage: layout ruby
