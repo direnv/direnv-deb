@@ -1,2 +1,1 @@
-0001-Respect-prefix-in-addition-to-DESTDIR-in-Makefile.patch
 0002-Escape-.-at-the-beginning-of-line-to-remove-manpage-.patch
