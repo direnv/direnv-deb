@@ -4,7 +4,7 @@ direnv -- Unclutter your .profile
 `direnv` is an environment switcher for the shell. It knows how to hook into
 bash, zsh, tcsh and fish shell to load or unload environment variables
 depending on the current directory. This allows project-specific
-environment variables without cluttering the "~/.profile" file.
+environment variables without cluttering the `~/.profile` file.
 
 Before each prompt, direnv checks for the existence of a ".envrc" file in the
 current and parent directories. If the file exists (and is authorized), it is
@@ -43,12 +43,9 @@ nope
 
 Dependencies: make, golang
 
-Make sure that `$GOPATH` is set in your environment. Example: `export GOPATH=$HOME/go`
-
 ```bash
-mkdir -p $GOPATH/src/github.com/direnv
-git clone https://github.com/direnv/direnv.git $GOPATH/src/github.com/direnv/direnv
-cd $GOPATH/src/github.com/direnv/direnv
+git clone https://github.com/direnv/direnv
+cd direnv
 make install
 # or symlink ./direnv into the $PATH
 ```
@@ -64,6 +61,7 @@ direnv is packaged for a variety of systems:
 * [NetBSD pkgsrc-wip](http://www.pkgsrc.org/wip/)
 * [NixOS](https://nixos.org/nixos/packages.html)
 * [OSX Homebrew](http://brew.sh/)
+* [MacPorts](https://www.macports.org/)
 * [Ubuntu](https://packages.ubuntu.com/search?keywords=direnv&searchon=names&suite=all&section=all)
 * [GNU Guix](https://www.gnu.org/software/guix/)
 
@@ -84,7 +82,7 @@ has its own extension mechanism:
 
 ### BASH
 
-Add the following line at the end of the "~/.bashrc" file:
+Add the following line at the end of the `~/.bashrc` file:
 
 ```sh
 eval "$(direnv hook bash)"
@@ -95,7 +93,7 @@ that manipulate the prompt.
 
 ### ZSH
 
-Add the following line at the end of the "~/.zshrc" file:
+Add the following line at the end of the `~/.zshrc` file:
 
 ```sh
 eval "$(direnv hook zsh)"
@@ -103,7 +101,7 @@ eval "$(direnv hook zsh)"
 
 ### FISH
 
-Add the following line at the end of the "~/.config/fish/config.fish" file:
+Add the following line at the end of the `~/.config/fish/config.fish` file:
 
 ```fish
 eval (direnv hook fish)
@@ -111,7 +109,7 @@ eval (direnv hook fish)
 
 ### TCSH
 
-Add the following line at the end of the "~/.cshrc" file:
+Add the following line at the end of the `~/.cshrc` file:
 
 ```sh
 eval `direnv hook tcsh`
@@ -160,7 +158,7 @@ To find the documentation for all available functions check the
 direnv-stdlib(1) man page.
 
 It's also possible to create your own extensions by creating a bash file at
-"~/.config/direnv/direnvrc" or "~/.direnvrc". This file is loaded before your
+`~/.config/direnv/direnvrc` or `~/.direnvrc`. This file is loaded before your
 ".envrc" and thus allows you to make your own extensions to direnv.
 
 #### Loading layered .envrc
@@ -176,6 +174,16 @@ If you add the following line in "/a/b/.envrc", you can load both of the
 ```sh
 source_env ..
 ```
+
+## Common things people don't know
+
+Based on GitHub issues interractions, here are the top things that have been confusing for users:
+
+1. direnv has a standard library of functions, a collection of utilities that I found useful to have and accumulated over the years. If you know how to read bash, you can find it here: https://github.com/direnv/direnv/blob/master/stdlib.sh
+
+2. It's possible to override the stdlib with your own set of function by adding a bash file to either `~/.config/direnv/direnvrc` or `~/.direnvrc`. These will become available to all your `.envrc` files.
+
+3. direnv is actually creating a new bash process to load the stdlib, direnvrc and `.envrc`, and only exports the environment diff back to the original shell. This allows direnv to record the environment changes accurately and also work with all sorts of shells. It also means that aliases and functions are not exportable right now.
 
 ## Similar projects
 
