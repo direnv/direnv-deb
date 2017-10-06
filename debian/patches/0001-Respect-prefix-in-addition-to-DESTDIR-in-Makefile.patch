@@ -1,0 +1,33 @@
+From: Punit Agrawal <punitagrawal@gmail.com>
+Date: Sun, 28 Jun 2015 13:29:18 +0100
+Subject: Respect prefix in addition to DESTDIR in Makefile
+
+---
+ Makefile | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index af2efd4..3e7fe16 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,4 +1,4 @@
+-DESTDIR ?= /usr/local
++PREFIX ?= /usr
+ 
+ MAN_MD = $(wildcard man/*.md)
+ ROFFS = $(MAN_MD:.md=)
+@@ -50,10 +50,10 @@ test: build
+ 	./test/direnv-test.sh
+ 
+ install: all
+-	install -d $(DESTDIR)/bin
+-	install -d $(DESTDIR)/share/man/man1
+-	install direnv $(DESTDIR)/bin
+-	cp -R man/*.1 $(DESTDIR)/share/man/man1
++	install -d $(DESTDIR)$(PREFIX)/bin
++	install -d $(DESTDIR)$(PREFIX)/share/man/man1
++	install direnv $(DESTDIR)$(PREFIX)/bin
++	cp -R man/*.1 $(DESTDIR)$(PREFIX)/share/man/man1
+ 
+ dist:
+ 	go get github.com/mitchellh/gox
