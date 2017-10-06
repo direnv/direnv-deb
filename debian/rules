@@ -4,18 +4,16 @@
 # Uncomment this to turn on verbose mode.
 # export DH_VERBOSE=1
 
+export GOPATH=$(CURDIR)
+
 %:
-	dh $@ --buildsystem=golang --with=golang
+	dh $@
 
 override_dh_auto_build:
+	ln -s vendor src
 	dh_auto_build
 	make man
 
-override_dh_auto_test:
-
-override_dh_auto_install:
-	dh_auto_install -- --no-source
-
 override_dh_auto_clean:
 	dh_auto_clean
-	rm -f man/*.1
+	rm -f man/*.1 src
