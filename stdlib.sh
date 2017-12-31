@@ -155,7 +155,6 @@ user_rel_path() {
 #
 find_up() {
   (
-    cd "$(pwd 2>/dev/null)"
     while true; do
       if [[ -f $1 ]]; then
         echo "$PWD/$1"
@@ -222,7 +221,7 @@ source_up() {
   fi
   dir=$(cd .. && find_up "$file")
   if [[ -n $dir ]]; then
-    source_env "$(user_rel_path "$dir")"
+    source_env "$dir"
   fi
 }
 
@@ -426,6 +425,27 @@ layout_python2() {
 #
 layout_python3() {
   layout_python python3 "$@"
+}
+
+# Usage: layout pipenv
+#
+# Similar to layout_python, but uses Pipenv to build a
+# virtualenv from the Pipfile located in the same directory.
+#
+layout_pipenv() {
+  if [[ ! -f Pipfile ]]; then
+    log_error 'No Pipfile found.  Use `pipenv` to create a Pipfile first.'
+    exit 2
+  fi
+
+  local VENV=$(pipenv --bare --venv 2>/dev/null)
+  if [[ -z $VENV || ! -d $VENV ]]; then
+    pipenv install --dev
+  fi
+
+  export VIRTUAL_ENV=$(pipenv --venv)
+  PATH_add "$VIRTUAL_ENV/bin"
+  export PIPENV_ACTIVE=1
 }
 
 # Usage: layout ruby
