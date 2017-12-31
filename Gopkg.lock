@@ -5,7 +5,7 @@
   branch = "master"
   name = "github.com/direnv/go-dotenv"
   packages = ["."]
-  revision = "528f1560748ad3a959abe03743f537f3c0be6c34"
+  revision = "ed7765a41787829cf0a04dd562883d9d4e5cd8a6"
 
 [solve-meta]
   analyzer-name = "dep"
