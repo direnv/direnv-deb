@@ -1,0 +1,21 @@
+From: Punit Agrawal <punitagrawal@gmail.com>
+Date: Sat, 24 Feb 2018 19:50:33 +0000
+Subject: Fix a lintian warning in direnv.toml manpage
+
+---
+ man/direnv.toml.1.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/man/direnv.toml.1.md b/man/direnv.toml.1.md
+index 659a960..ff14ec8 100644
+--- a/man/direnv.toml.1.md
++++ b/man/direnv.toml.1.md
+@@ -80,7 +80,7 @@ In this example, the following .envrc files will not be implicitly allowed (alth
+ 
+ ## `bash_path`
+ 
+-This allows to hard-code the position of bash. It maybe be useful to set this to avoid having direnv to fail when PATH is being mutated.
++This allows one to hard-code the position of bash. It maybe be useful to set this to avoid having direnv to fail when PATH is being mutated.
+ 
+ COPYRIGHT
+ ---------

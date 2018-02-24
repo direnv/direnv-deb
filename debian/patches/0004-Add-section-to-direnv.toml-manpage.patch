@@ -1,0 +1,20 @@
+From: Punit Agrawal <punitagrawal@gmail.com>
+Date: Sat, 24 Feb 2018 19:25:49 +0000
+Subject: Add section to direnv.toml manpage
+
+The direnv.toml manpage is missing section number causing a lintian
+warning. Add a section number to fix this.
+---
+ man/direnv.toml.1.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/man/direnv.toml.1.md b/man/direnv.toml.1.md
+index eb73a80..659a960 100644
+--- a/man/direnv.toml.1.md
++++ b/man/direnv.toml.1.md
+@@ -1,4 +1,4 @@
+-DIRENV.TOML "FEBRUARY 2018" direnv "User Manuals"
++DIRENV.TOML 1 "FEBRUARY 2018" direnv "User Manuals"
+ ==================================================
+ 
+ NAME

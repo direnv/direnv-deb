@@ -1,3 +1,5 @@
 0001-Respect-prefix-in-addition-to-DESTDIR-in-Makefile.patch
 0002-Escape-.-at-the-beginning-of-line-to-remove-manpage-.patch
 0003-fix-support-for-go-1.10-339.patch
+0004-Add-section-to-direnv.toml-manpage.patch
+0005-Fix-a-lintian-warning-in-direnv.toml-manpage.patch
