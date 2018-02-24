@@ -1,3 +1,11 @@
+direnv (2.15.0-1) unstable; urgency=medium
+
+  * New upstream version 2.15.0
+  * Refresh fix with patch from upstream
+  * Fix lintian warnings arising from upstream version 2.15.0
+
+ -- Punit Agrawal <punit@debian.org>  Sat, 24 Feb 2018 19:39:41 +0000
+
 direnv (2.14.0-2) unstable; urgency=medium
 
   * Fix build failure with golang-1.10 (Closes: #890852)
