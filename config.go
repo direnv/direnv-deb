@@ -18,13 +18,15 @@ type Config struct {
 	BashPath        string
 	RCDir           string
 	TomlPath        string
+	DisableStdin    bool
 	WhitelistPrefix []string
 	WhitelistExact  map[string]bool
 }
 
 type tomlConfig struct {
-	Whitelist whitelist `toml:"whitelist"`
-	BashPath  string    `toml:"bash_path"`
+	Whitelist    whitelist `toml:"whitelist"`
+	BashPath     string    `toml:"bash_path"`
+	DisableStdin bool      `toml:"disable_stdin"`
 }
 
 type whitelist struct {
@@ -47,14 +49,11 @@ func LoadConfig(env Env) (config *Config, err error) {
 	}
 
 	var exePath string
-	if exePath, err = exec.LookPath(os.Args[0]); err != nil {
-		err = fmt.Errorf("LoadConfig() Lookpath failed: %q", err)
+	if exePath, err = os.Executable(); err != nil {
+		err = fmt.Errorf("LoadConfig() os.Executable() failed: %q", err)
 		return
 	}
-	if exePath, err = filepath.EvalSymlinks(exePath); err != nil {
-		err = fmt.Errorf("LoadConfig() symlink resolution: %q", err)
-		return
-	}
+	// Fix for mingsys
 	exePath = strings.Replace(exePath, "\\", "/", -1)
 	config.SelfPath = exePath
 
@@ -92,6 +91,7 @@ func LoadConfig(env Env) (config *Config, err error) {
 			config.WhitelistExact[path] = true
 		}
 
+		config.DisableStdin = tomlConf.DisableStdin
 		config.BashPath = tomlConf.BashPath
 	}
 
