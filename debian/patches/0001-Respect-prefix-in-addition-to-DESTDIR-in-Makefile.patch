@@ -1,13 +1,13 @@
-From: Punit Agrawal <punitagrawal@gmail.com>
-Date: Sun, 28 Jun 2015 13:29:18 +0100
-Subject: Respect prefix in addition to DESTDIR in Makefile
+From: Punit Agrawal <punit@debian.org>
+Date: Wed, 4 Jul 2018 07:33:16 +0100
+Subject: [PATCH] Respect prefix in addition to DESTDIR in Makefile
 
 ---
  Makefile | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/Makefile b/Makefile
-index af2efd4..3e7fe16 100644
+index 2c90211..95fec1f 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -1,4 +1,4 @@
@@ -16,8 +16,8 @@ index af2efd4..3e7fe16 100644
  
  MAN_MD = $(wildcard man/*.md)
  ROFFS = $(MAN_MD:.md=)
-@@ -50,10 +50,10 @@ test: build
- 	./test/direnv-test.sh
+@@ -54,10 +54,10 @@ test: build
+ 	elvish ./test/direnv-test.elv
  
  install: all
 -	install -d $(DESTDIR)/bin

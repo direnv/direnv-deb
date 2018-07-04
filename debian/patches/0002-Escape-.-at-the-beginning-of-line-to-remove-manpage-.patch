@@ -9,7 +9,7 @@ usage. Escape it with '\' to remove a missing macro warning.
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/man/direnv.1.md b/man/direnv.1.md
-index c0c3d91..a14ef0e 100644
+index 3ac6f1f..7650c4b 100644
 --- a/man/direnv.1.md
 +++ b/man/direnv.1.md
 @@ -36,7 +36,7 @@ $ cd ~/my_project
