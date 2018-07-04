@@ -2,7 +2,7 @@ direnv -- Unclutter your .profile
 =================================
 
 `direnv` is an environment switcher for the shell. It knows how to hook into
-bash, zsh, tcsh and fish shell to load or unload environment variables
+bash, zsh, tcsh, fish shell and elvish to load or unload environment variables
 depending on the current directory. This allows project-specific
 environment variables without cluttering the `~/.profile` file.
 
@@ -61,6 +61,7 @@ direnv is packaged for a variety of systems:
 * [NetBSD pkgsrc-wip](http://www.pkgsrc.org/wip/)
 * [NixOS](https://nixos.org/nixos/packages.html)
 * [OSX Homebrew](http://brew.sh/)
+* [OpenSuSe](https://build.opensuse.org/package/show/openSUSE%3AFactory/direnv)
 * [MacPorts](https://www.macports.org/)
 * [Ubuntu](https://packages.ubuntu.com/search?keywords=direnv&searchon=names&suite=all&section=all)
 * [GNU Guix](https://www.gnu.org/software/guix/)
@@ -115,6 +116,19 @@ Add the following line at the end of the `~/.cshrc` file:
 eval `direnv hook tcsh`
 ```
 
+### Elvish
+
+Run:
+
+```
+$> direnv hook elvish > ~/.elvish/lib/direnv.elv
+```
+
+and add the following line to your `~/.elvish/rc.elv` file:
+
+```
+use direnv
+```
 
 ## Usage
 
@@ -173,6 +187,11 @@ If you add the following line in "/a/b/.envrc", you can load both of the
 
 ```sh
 source_env ..
+```
+In the general case `source_up` will load any .envrc higher up in the folder structure. This allows you to truely enable arbitrary heirarchical stuctures of `.envrc` usage.
+
+```sh
+source_up
 ```
 
 ## Common things people don't know
