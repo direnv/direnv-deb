@@ -1,3 +1,11 @@
+direnv (2.17.0-1) unstable; urgency=medium
+
+  * New upstream version 2.17.0
+  * Drop build dependency on elvish
+  * Update Standards-Version to 4.1.4
+
+ -- Punit Agrawal <punit@debian.org>  Sat, 07 Jul 2018 07:23:00 +0100
+
 direnv (2.15.2-1) unstable; urgency=medium
 
   * New upstream version 2.15.2
