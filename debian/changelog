@@ -1,3 +1,11 @@
+direnv (2.18.2-1) unstable; urgency=medium
+
+  * New upstream version 2.18.2
+  * Update build dependincies
+  * Update patch queue for 2.18.2
+
+ -- Punit Agrawal <punit@debian.org>  Thu, 27 Dec 2018 19:40:02 +0900
+
 direnv (2.17.0-1) unstable; urgency=medium
 
   * New upstream version 2.17.0
