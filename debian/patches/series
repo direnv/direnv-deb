@@ -1,3 +1,2 @@
-0001-Respect-prefix-in-addition-to-DESTDIR-in-Makefile.patch
+0001-Respect-PREFIX-in-GNUmakefile.patch
 0002-Escape-.-at-the-beginning-of-line-to-remove-manpage-.patch
-0003-Don-t-run-the-elvish-test-during-build.patch

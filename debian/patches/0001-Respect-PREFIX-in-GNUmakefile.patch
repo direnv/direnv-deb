@@ -1,0 +1,25 @@
+From: Punit Agrawal <punit@debian.org>
+Date: Thu, 27 Dec 2018 19:38:18 +0900
+Subject: Respect PREFIX in GNUmakefile
+
+---
+ GNUmakefile | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/GNUmakefile b/GNUmakefile
+index aa78ff4..fd1feab 100644
+--- a/GNUmakefile
++++ b/GNUmakefile
+@@ -3,9 +3,9 @@
+ ############################################################################
+ 
+ # Set this to change the target installation path
+-DESTDIR ?= /usr/local
+-BINDIR   = ${DESTDIR}/bin
+-MANDIR   = ${DESTDIR}/share/man
++PREFIX ?= /usr
++BINDIR   = ${DESTDIR}${PREFIX}/bin
++MANDIR   = ${DESTDIR}${PREFIX}/share/man
+ 
+ # filename of the executable
+ exe = direnv$(shell go env GOEXE)
