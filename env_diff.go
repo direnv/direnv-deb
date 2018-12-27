@@ -2,6 +2,8 @@ package main
 
 import (
 	"strings"
+
+	"github.com/direnv/direnv/gzenv"
 )
 
 // A list of keys we don't want to deal with
@@ -9,6 +11,9 @@ var IGNORED_KEYS = map[string]bool{
 	// direnv env config
 	"DIRENV_CONFIG": true,
 	"DIRENV_BASH":   true,
+
+	// should only be available inside of the .envrc
+	"DIRENV_IN_ENVRC": true,
 
 	"COMP_WORDBREAKS": true, // Avoids segfaults in bash
 	"PS1":             true, // PS1 should not be exported, fixes problem in bash
@@ -60,9 +65,9 @@ func BuildEnvDiff(e1, e2 Env) *EnvDiff {
 	return diff
 }
 
-func LoadEnvDiff(base64env string) (diff *EnvDiff, err error) {
+func LoadEnvDiff(gzenvStr string) (diff *EnvDiff, err error) {
 	diff = new(EnvDiff)
-	err = unmarshal(base64env, diff)
+	err = gzenv.Unmarshal(gzenvStr, diff)
 	return
 }
 
@@ -110,7 +115,7 @@ func (self *EnvDiff) Reverse() *EnvDiff {
 }
 
 func (self *EnvDiff) Serialize() string {
-	return marshal(self)
+	return gzenv.Marshal(self)
 }
 
 //// Utils

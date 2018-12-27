@@ -1,6 +1,9 @@
 direnv -- Unclutter your .profile
 =================================
 
+[![Built with Nix](https://builtwithnix.org/badge.svg)](https://builtwithnix.org)
+[![Build Status](https://travis-ci.org/direnv/direnv.svg?branch=master)](https://travis-ci.org/direnv/direnv)
+
 `direnv` is an environment switcher for the shell. It knows how to hook into
 bash, zsh, tcsh, fish shell and elvish to load or unload environment variables
 depending on the current directory. This allows project-specific
@@ -39,17 +42,6 @@ nope
 
 ## Install
 
-### From source
-
-Dependencies: make, golang
-
-```bash
-git clone https://github.com/direnv/direnv
-cd direnv
-make install
-# or symlink ./direnv into the $PATH
-```
-
 ### From system packages
 
 direnv is packaged for a variety of systems:
@@ -61,13 +53,14 @@ direnv is packaged for a variety of systems:
 * [NetBSD pkgsrc-wip](http://www.pkgsrc.org/wip/)
 * [NixOS](https://nixos.org/nixos/packages.html)
 * [OSX Homebrew](http://brew.sh/)
-* [OpenSuSe](https://build.opensuse.org/package/show/openSUSE%3AFactory/direnv)
+* [openSUSE](https://build.opensuse.org/package/show/openSUSE%3AFactory/direnv)
 * [MacPorts](https://www.macports.org/)
 * [Ubuntu](https://packages.ubuntu.com/search?keywords=direnv&searchon=names&suite=all&section=all)
 * [GNU Guix](https://www.gnu.org/software/guix/)
 
-Non-official builds for Debian and Fedora are also available at
-https://dl.equinox.io/zimbatm/direnv/stable
+See also:
+
+[![Packaging status](https://repology.org/badge/vertical-allrepos/direnv.svg)](https://repology.org/metapackage/direnv)
 
 ### From binary builds
 
@@ -75,6 +68,30 @@ Binary builds for a variety of architectures are also available for
 [each release](https://github.com/direnv/direnv/releases).
 
 Fetch the binary, `chmod +x direnv` and put it somewhere in your PATH.
+
+### Compile from source
+
+Setup go environment https://golang.org/doc/install
+
+> go >= 1.9 is required
+
+Clone project:
+
+    $ git clone git@github.com:direnv/direnv.git
+
+Build by just typing make:
+
+    $ cd direnv
+    $ make
+
+To install to /usr/local:
+
+    $ make install
+
+Or to a different location like `~/.local`:
+
+    $ make install DESTDIR=~/.local
+
 
 ## Setup
 
@@ -116,7 +133,7 @@ Add the following line at the end of the `~/.cshrc` file:
 eval `direnv hook tcsh`
 ```
 
-### Elvish
+### Elvish (0.12+)
 
 Run:
 
@@ -188,7 +205,7 @@ If you add the following line in "/a/b/.envrc", you can load both of the
 ```sh
 source_env ..
 ```
-In the general case `source_up` will load any .envrc higher up in the folder structure. This allows you to truely enable arbitrary heirarchical stuctures of `.envrc` usage.
+In the general case `source_up` will load any .envrc higher up in the folder structure. This allows you to truly enable arbitrary heirarchical stuctures of `.envrc` usage.
 
 ```sh
 source_up
@@ -209,6 +226,7 @@ Based on GitHub issues interractions, here are the top things that have been con
 * [Environment Modules](http://modules.sourceforge.net/) - one of the oldest (in a good way) environment-loading systems
 * [autoenv](https://github.com/kennethreitz/autoenv) - lightweight; doesn't support unloads
 * [zsh-autoenv](https://github.com/Tarrasch/zsh-autoenv) - a feature-rich mixture of autoenv and [smartcd](https://github.com/cxreg/smartcd): enter/leave events, nesting, stashing (Zsh-only).
+* [asdf](https://github.com/asdf-vm/asdf) - a pure bash solution that has a plugin system
 
 ## Contribute
 

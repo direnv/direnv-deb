@@ -114,7 +114,7 @@ test_start "child-env"
 test_stop
 
 test_start "special-vars"
-  export DIRENV_BASH=`which bash`
+  export DIRENV_BASH=`command -v bash`
   export DIRENV_CONFIG=foobar
   direnv_eval || true
   test -n "$DIRENV_BASH"
@@ -141,6 +141,15 @@ test_start "empty-var-unset"
   direnv_eval
   test_eq "${FOO-unset}" "unset"
   unset FOO
+test_stop
+
+test_start "in-envrc"
+  direnv_eval
+  set +e
+  ./test-in-envrc
+  es=$?
+  set -e
+  test_eq "$es" "1"
 test_stop
 
 test_start "missing-file-source-env"
