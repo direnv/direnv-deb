@@ -2,12 +2,24 @@
 #
 # These are the commands available in an .envrc context
 #
+# ShellCheck exceptions:
+#
+# SC1090: Can't follow non-constant source. Use a directive to specify location.
+# SC1091: Not following: (file missing)
+# SC1117: Backslash is literal in "\n". Prefer explicit escaping: "\\n".
+# SC2059: Don't use variables in the printf format string. Use printf "..%s.." "$foo".
 set -e
+
 # NOTE: don't touch the RHS, it gets replaced at runtime
-direnv="$(which direnv)"
+direnv="$(command -v direnv)"
 
 # Config, change in the direnvrc
 DIRENV_LOG_FORMAT="${DIRENV_LOG_FORMAT-direnv: %s}"
+
+# This variable can be used by programs to detect when they are running inside
+# of a .envrc evaluation context. It is ignored by the direnv diffing
+# algorithm and so it won't be re-exported.
+export DIRENV_IN_ENVRC=1
 
 # Usage: direnv_layout_dir
 #
@@ -34,7 +46,7 @@ direnv_layout_dir() {
 log_status() {
   if [[ -n $DIRENV_LOG_FORMAT ]]; then
     local msg=$*
-    # shellcheck disable=SC2059
+    # shellcheck disable=SC2059,SC1117
     printf "${DIRENV_LOG_FORMAT}\n" "$msg" >&2
   fi
 }
@@ -57,7 +69,7 @@ log_error() {
   color_error=$(tput setaf 1)
   if [[ -n $DIRENV_LOG_FORMAT ]]; then
     local msg=$*
-    # shellcheck disable=SC2059
+    # shellcheck disable=SC2059,SC1117
     printf "${color_error}${DIRENV_LOG_FORMAT}${color_normal}\n" "$msg" >&2
   fi
 }
@@ -170,7 +182,7 @@ find_up() {
         echo "$PWD/$1"
         return 0
       fi
-      if [[ $PWD = / ]] || [[ $PWD = // ]]; then
+      if [[ $PWD == / ]] || [[ $PWD == // ]]; then
         return 1
       fi
       cd ..
@@ -193,17 +205,17 @@ source_env() {
   rcfile=$(user_rel_path "$rcpath")
   watch_file "$rcpath"
 
-  pushd "$(pwd 2>/dev/null)" > /dev/null
-    pushd "$(dirname "$rcpath")" > /dev/null
-    if [[ -f ./$(basename "$rcpath") ]]; then
-      log_status "loading $rcfile"
-      # shellcheck source=/dev/null
-      . "./$(basename "$rcpath")"
-    else
-      log_status "referenced $rcfile does not exist"
-    fi
-    popd > /dev/null
-  popd > /dev/null
+  pushd "$(pwd 2>/dev/null)" >/dev/null
+  pushd "$(dirname "$rcpath")" >/dev/null
+  if [[ -f ./$(basename "$rcpath") ]]; then
+    log_status "loading $rcfile"
+    # shellcheck source=/dev/null
+    . "./$(basename "$rcpath")"
+  else
+    log_status "referenced $rcfile does not exist"
+  fi
+  popd >/dev/null
+  popd >/dev/null
 }
 
 # Usage: watch_file <filename>
@@ -216,7 +228,6 @@ watch_file() {
 
   eval "$("$direnv" watch "$file")"
 }
-
 
 # Usage: source_up [<filename>]
 #
@@ -284,19 +295,23 @@ PATH_add() {
 #
 # Works like PATH_add except that it's for an arbitrary <varname>.
 path_add() {
+  local path
   local var_name="$1"
   # split existing paths into an array
   declare -a path_array
-  IFS=: read -ra path_array <<< "${!1}"
+  IFS=: read -ra path_array <<<"${!1}"
   shift
 
   # prepend the passed paths in the right order
-  for (( i=$# ; i>0 ; i-- )); do
-    path_array=( "$(expand_path "${!i}")" "${path_array[@]}" )
+  for ((i = $#; i > 0; i--)); do
+    path_array=("$(expand_path "${!i}")" "${path_array[@]}")
   done
 
   # join back all the paths
-  local path=$(IFS=:; echo "${path_array[*]}")
+  path=$(
+    IFS=:
+    echo "${path_array[*]}"
+  )
 
   # and finally export back the result to the original variable
   export "$var_name=$path"
@@ -385,13 +400,21 @@ layout_node() {
 # See http://search.cpan.org/dist/local-lib/lib/local/lib.pm for more details
 #
 layout_perl() {
-  local libdir=$(direnv_layout_dir)/perl5
+  local libdir
+  libdir=$(direnv_layout_dir)/perl5
   export LOCAL_LIB_DIR=$libdir
   export PERL_MB_OPT="--install_base '$libdir'"
   export PERL_MM_OPT="INSTALL_BASE=$libdir"
   path_add PERL5LIB "$libdir/lib/perl5"
   path_add PERL_LOCAL_LIB_ROOT "$libdir"
   PATH_add "$libdir/bin"
+}
+
+# Usage: layout php
+#
+# Adds "$PWD/vendor/bin" to the PATH environment variable
+layout_php() {
+  PATH_add vendor/bin
 }
 
 # Usage: layout python <python_exe>
@@ -404,11 +427,12 @@ layout_perl() {
 # versions of python.
 #
 layout_python() {
+  local old_env
   local python=${1:-python}
   [[ $# -gt 0 ]] && shift
-  local old_env=$(direnv_layout_dir)/virtualenv
+  old_env=$(direnv_layout_dir)/virtualenv
   unset PYTHONHOME
-  if [[ -d $old_env && $python = python ]]; then
+  if [[ -d $old_env && $python == python ]]; then
     export VIRTUAL_ENV=$old_env
   else
     local python_version
@@ -418,7 +442,8 @@ layout_python() {
       return 1
     fi
 
-    export VIRTUAL_ENV=$(direnv_layout_dir)/python-$python_version
+    VIRTUAL_ENV=$(direnv_layout_dir)/python-$python_version
+    export VIRTUAL_ENV
     if [[ ! -d $VIRTUAL_ENV ]]; then
       virtualenv "--python=$python" "$@" "$VIRTUAL_ENV"
     fi
@@ -442,7 +467,7 @@ layout_python3() {
   layout_python python3 "$@"
 }
 
-# Usage: layout anaconda <enviroment_name> [<conda_exe>]
+# Usage: layout anaconda <environment_name> [<conda_exe>]
 #
 # Activates anaconda for the named environment. If the environment
 # hasn't been created, it will be using the environment.yml file in
@@ -451,17 +476,18 @@ layout_python3() {
 #
 layout_anaconda() {
   local env_name=$1
+  local env_loc
   local conda
   if [[ $# -gt 1 ]]; then
     conda=${2}
   else
     conda=$(command -v conda)
   fi
-  PATH_add $(dirname "$conda")
-  local env_loc=$("$conda" env list | grep -- "$env_name")
+  PATH_add "$(dirname "$conda")"
+  env_loc=$("$conda" env list | grep -- "$env_name")
   if [[ ! "$env_loc" == $env_name*$env_name ]]; then
     if [[ -e environment.yml ]]; then
-      log_status "creating conda enviroment"
+      log_status "creating conda environment"
       "$conda" env create
     else
       log_error "Could not find environment.yml"
@@ -469,6 +495,7 @@ layout_anaconda() {
     fi
   fi
 
+  # shellcheck disable=SC1091
   source activate "$env_name"
 }
 
@@ -478,19 +505,24 @@ layout_anaconda() {
 # virtualenv from the Pipfile located in the same directory.
 #
 layout_pipenv() {
-  if [[ ! -f Pipfile ]]; then
-    log_error 'No Pipfile found.  Use `pipenv` to create a Pipfile first.'
+  local venv
+  PIPENV_PIPFILE="${PIPENV_PIPFILE:-Pipfile}"
+  if [[ ! -f "$PIPENV_PIPFILE" ]]; then
+    log_error "No Pipfile found.  Use \`pipenv\` to create a \`$PIPENV_PIPFILE\` first."
     exit 2
   fi
 
-  local VENV=$(pipenv --bare --venv 2>/dev/null)
-  if [[ -z $VENV || ! -d $VENV ]]; then
+  venv=$(pipenv --bare --venv 2>/dev/null)
+
+  if [[ -z $venv || ! -d $venv ]]; then
     pipenv install --dev
   fi
 
-  export VIRTUAL_ENV=$(pipenv --venv)
+  VIRTUAL_ENV=$(pipenv --venv)
+
   PATH_add "$VIRTUAL_ENV/bin"
   export PIPENV_ACTIVE=1
+  export VIRTUAL_ENV
 }
 
 # Usage: layout ruby
@@ -501,14 +533,18 @@ layout_pipenv() {
 # directly instead of using the $(bundle exec) prefix.
 #
 layout_ruby() {
+  BUNDLE_BIN=$(direnv_layout_dir)/bin
+
   if ruby -e "exit Gem::VERSION > '2.2.0'" 2>/dev/null; then
-    export GEM_HOME=$(direnv_layout_dir)/ruby
+    GEM_HOME=$(direnv_layout_dir)/ruby
   else
     local ruby_version
     ruby_version=$(ruby -e"puts (defined?(RUBY_ENGINE) ? RUBY_ENGINE : 'ruby') + '-' + RUBY_VERSION")
-    export GEM_HOME=$(direnv_layout_dir)/ruby-${ruby_version}
+    GEM_HOME=$(direnv_layout_dir)/ruby-${ruby_version}
   fi
-  export BUNDLE_BIN=$(direnv_layout_dir)/bin
+
+  export BUNDLE_BIN
+  export GEM_HOME
 
   PATH_add "$GEM_HOME/bin"
   PATH_add "$BUNDLE_BIN"
@@ -591,12 +627,12 @@ use_node() {
   fi
 
   if [[ -z $version ]] && [[ -f .nvmrc ]]; then
-    version=$(< .nvmrc)
+    version=$(<.nvmrc)
     via=".nvmrc"
   fi
 
   if [[ -z $version ]] && [[ -f .node-version ]]; then
-    version=$(< .node-version)
+    version=$(<.node-version)
     via=".node-version"
   fi
 
@@ -608,17 +644,14 @@ use_node() {
   node_wanted=${node_version_prefix}${version}
   node_prefix=$(
     # Look for matching node versions in $NODE_VERSIONS path
-    find "$NODE_VERSIONS" -maxdepth 1 -mindepth 1 -type d -name "$node_wanted*" |
-
     # Strip possible "/" suffix from $NODE_VERSIONS, then use that to
     # Strip $NODE_VERSIONS/$NODE_VERSION_PREFIX prefix from line.
-    while IFS= read -r line; do echo "${line#${NODE_VERSIONS%/}/${node_version_prefix}}"; done |
-
     # Sort by version: split by "." then reverse numeric sort for each piece of the version string
-    sort -t . -k 1,1rn -k 2,2rn -k 3,3rn |
-
     # The first one is the highest
-    head -1
+    find "$NODE_VERSIONS" -maxdepth 1 -mindepth 1 -type d -name "$node_wanted*" \
+      | while IFS= read -r line; do echo "${line#${NODE_VERSIONS%/}/${node_version_prefix}}"; done \
+      | sort -t . -k 1,1rn -k 2,2rn -k 3,3rn \
+      | head -1
   )
 
   node_prefix="${NODE_VERSIONS}/${node_version_prefix}${node_prefix}"
@@ -651,7 +684,7 @@ use_node() {
 #
 use_nix() {
   direnv_load nix-shell --show-trace "$@" --run "$(join_args "$direnv" dump)"
-  if [[ $# = 0 ]]; then
+  if [[ $# == 0 ]]; then
     watch_file default.nix
     watch_file shell.nix
   fi
@@ -673,7 +706,9 @@ use_guix() {
 
 ## Load the global ~/.direnvrc if present
 if [[ -f ${XDG_CONFIG_HOME:-$HOME/.config}/direnv/direnvrc ]]; then
+  # shellcheck disable=SC1090
   source "${XDG_CONFIG_HOME:-$HOME/.config}/direnv/direnvrc" >&2
 elif [[ -f $HOME/.direnvrc ]]; then
+  # shellcheck disable=SC1090
   source "$HOME/.direnvrc" >&2
 fi
