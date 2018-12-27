@@ -2,9 +2,9 @@ Source: direnv
 Section: utils
 Priority: optional
 Maintainer: Punit Agrawal <punit@debian.org>
-Build-Depends: debhelper (>= 10.0.0),
-	       golang-any,
-	       go-md2man
+Build-Depends: debhelper (>= 10.0.0), elvish, fish,
+	       golang-any, go-md2man,
+	       shellcheck
 Standards-Version: 4.1.4
 Homepage: http://direnv.net/
 Vcs-Git: https://github.com/direnv/direnv-deb.git
