@@ -1,3 +1,12 @@
+direnv (2.18.2-2) unstable; urgency=medium
+
+  * Add ruby as a dependency
+  * Include upstream provided docs
+  * Update standards version to 4.3.0
+  * Force testing to be single threaded
+
+ -- Punit Agrawal <punit@debian.org>  Sun, 30 Dec 2018 18:20:20 +0900
+
 direnv (2.18.2-1) unstable; urgency=medium
 
   * New upstream version 2.18.2
