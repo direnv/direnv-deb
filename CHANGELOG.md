@@ -1,4 +1,39 @@
 
+2.20.1 / 2019-03-31
+==================
+
+  * ci: try to fix releases
+
+2.20.0 / 2019-03-31
+==================
+
+  * CHANGE: Use source instead of eval on fish hook
+  * DOC: Remove duplicate build badge (#465)
+  * DOC: add note about auth (#463)
+  * DOC: change nixos link (#460)
+  * FIX: Corrects reverse patching when using exec cmd. (#466)
+  * FIX: Perform stricter search for existing Anaconda environments (#462)
+  * FIX: arity mismatch for elvish (#482)
+  * FIX: avoid reloading on each prompt after error (#468)
+  * FIX: improve bash hook handlign of empty PROMPT_COMMAND (#473)
+  * FIX: improved the tests for bash, zsh, fish and tcsh (#469)
+  * MISC: migrated from Travis CI to Azure Pipelines (#484)
+
+2.19.2 / 2019-02-09
+==================
+
+  * FIX: file_times: check Stat and Lstat (#457)
+
+2.19.1 / 2019-01-31
+==================
+
+  * FIX: watched files now handle symlinks properly. Thanks @grahamc! #452
+
+2.19.0 / 2019-01-11
+==================
+
+  * NEW: add support for .env variable expansion. Thanks to @hakamadare!
+
 2.18.2 / 2018-11-23
 ==================
 

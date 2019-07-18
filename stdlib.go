@@ -1,6 +1,6 @@
 package main
 
-const STDLIB = "#!bash\n" +
+const STDLIB = "#!/usr/bin/env bash\n" +
 	"#\n" +
 	"# These are the commands available in an .envrc context\n" +
 	"#\n" +
@@ -19,8 +19,8 @@ const STDLIB = "#!bash\n" +
 	"DIRENV_LOG_FORMAT=\"${DIRENV_LOG_FORMAT-direnv: %s}\"\n" +
 	"\n" +
 	"# This variable can be used by programs to detect when they are running inside\n" +
-	"# of a .envrc evaluation context. All variables starting with `DIRENV_` are\n" +
-	"# ignored by the direnv diffing algorithm and so it won't be re-exported.\n" +
+	"# of a .envrc evaluation context. It is ignored by the direnv diffing\n" +
+	"# algorithm and so it won't be re-exported.\n" +
 	"export DIRENV_IN_ENVRC=1\n" +
 	"\n" +
 	"# Usage: direnv_layout_dir\n" +
@@ -486,7 +486,7 @@ const STDLIB = "#!bash\n" +
 	"    conda=$(command -v conda)\n" +
 	"  fi\n" +
 	"  PATH_add \"$(dirname \"$conda\")\"\n" +
-	"  env_loc=$(\"$conda\" env list | grep -- \"$env_name\")\n" +
+	"  env_loc=$(\"$conda\" env list | grep -- \"^$env_name\\s\")\n" +
 	"  if [[ ! \"$env_loc\" == $env_name*$env_name ]]; then\n" +
 	"    if [[ -e environment.yml ]]; then\n" +
 	"      log_status \"creating conda environment\"\n" +
@@ -587,13 +587,13 @@ const STDLIB = "#!bash\n" +
 	"rvm() {\n" +
 	"  unset rvm\n" +
 	"  if [[ -n ${rvm_scripts_path:-} ]]; then\n" +
-	"    # shellcheck source=/dev/null\n" +
+	"    # shellcheck disable=SC1090\n" +
 	"    source \"${rvm_scripts_path}/rvm\"\n" +
 	"  elif [[ -n ${rvm_path:-} ]]; then\n" +
-	"    # shellcheck source=/dev/null\n" +
+	"    # shellcheck disable=SC1090\n" +
 	"    source \"${rvm_path}/scripts/rvm\"\n" +
 	"  else\n" +
-	"    # shellcheck source=/dev/null\n" +
+	"    # shellcheck disable=SC1090\n" +
 	"    source \"$HOME/.rvm/scripts/rvm\"\n" +
 	"  fi\n" +
 	"  rvm \"$@\"\n" +
