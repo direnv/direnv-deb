@@ -1,4 +1,4 @@
-#!bash
+#!/usr/bin/env bash
 #
 # These are the commands available in an .envrc context
 #
@@ -209,7 +209,7 @@ source_env() {
   pushd "$(dirname "$rcpath")" >/dev/null
   if [[ -f ./$(basename "$rcpath") ]]; then
     log_status "loading $rcfile"
-    # shellcheck source=/dev/null
+    # shellcheck disable=SC1090
     . "./$(basename "$rcpath")"
   else
     log_status "referenced $rcfile does not exist"
@@ -484,7 +484,7 @@ layout_anaconda() {
     conda=$(command -v conda)
   fi
   PATH_add "$(dirname "$conda")"
-  env_loc=$("$conda" env list | grep -- "$env_name")
+  env_loc=$("$conda" env list | grep -- "^$env_name\s")
   if [[ ! "$env_loc" == $env_name*$env_name ]]; then
     if [[ -e environment.yml ]]; then
       log_status "creating conda environment"
@@ -585,13 +585,13 @@ use_rbenv() {
 rvm() {
   unset rvm
   if [[ -n ${rvm_scripts_path:-} ]]; then
-    # shellcheck source=/dev/null
+    # shellcheck disable=SC1090
     source "${rvm_scripts_path}/rvm"
   elif [[ -n ${rvm_path:-} ]]; then
-    # shellcheck source=/dev/null
+    # shellcheck disable=SC1090
     source "${rvm_path}/scripts/rvm"
   else
-    # shellcheck source=/dev/null
+    # shellcheck disable=SC1090
     source "$HOME/.rvm/scripts/rvm"
   fi
   rvm "$@"

@@ -29,7 +29,7 @@ func (times *FileTimes) Update(path string) (err error) {
 	var modtime int64
 	var exists bool
 
-	stat, err := os.Stat(path)
+	stat, err := getLatestStat(path)
 	if os.IsNotExist(err) {
 		exists = false
 	} else {
@@ -109,21 +109,23 @@ func (times *FileTimes) CheckOne(path string) (err error) {
 }
 
 func (time FileTime) Check() (err error) {
-	stat, err := os.Stat(time.Path)
+	stat, err := getLatestStat(time.Path)
+
 	switch {
 	case os.IsNotExist(err):
 		if time.Exists {
-			log_debug("Check: %s: gone", time.Path)
-			return checkFailed{fmt.Sprintf("File %q is missing", time.Path)}
+			log_debug("Stat Check: %s: gone", time.Path)
+			return checkFailed{fmt.Sprintf("File %q is missing (Stat)", time.Path)}
 		}
 	case err != nil:
-		log_debug("Check: %s: ERR: %v", time.Path, err)
+		log_debug("Stat Check: %s: ERR: %v", time.Path, err)
 		return err
 	case !time.Exists:
 		log_debug("Check: %s: appeared", time.Path)
 		return checkFailed{fmt.Sprintf("File %q newly created", time.Path)}
 	case stat.ModTime().Unix() != time.Modtime:
-		log_debug("Check: %s: stale", time.Path)
+		log_debug("Check: %s: stale (stat: %v, lastcheck: %v)",
+			time.Path, stat.ModTime().Unix(), time.Modtime)
 		return checkFailed{fmt.Sprintf("File %q has changed", time.Path)}
 	}
 	log_debug("Check: %s: up to date", time.Path)
@@ -148,4 +150,36 @@ func (times *FileTimes) Marshal() string {
 
 func (times *FileTimes) Unmarshal(from string) error {
 	return gzenv.Unmarshal(from, times.list)
+}
+
+func getLatestStat(path string) (os.FileInfo, error) {
+	var lstat_modtime int64
+	var stat_modtime int64
+
+	// Check the examine-a-symlink case first:
+	lstat, err := os.Lstat(path)
+	if err != nil {
+		log_debug("getLatestStat,Lstat: %s: error: %v", path, err)
+		return nil, err
+	}
+	lstat_modtime = lstat.ModTime().Unix()
+
+	stat, err := os.Stat(path)
+	if err != nil {
+		log_debug("getLatestStat,Stat: %s: error: %v (Lstat time: %v)",
+			path, err, lstat_modtime)
+		return nil, err
+	}
+	stat_modtime = stat.ModTime().Unix()
+
+	if lstat_modtime > stat_modtime {
+		log_debug("getLatestStat: %s: Lstat: %v, Stat: %v -> preferring Lstat",
+			path, lstat_modtime, stat_modtime)
+		return lstat, nil
+	} else {
+		log_debug("getLatestStat: %s: Lstat: %v, Stat: %v -> preferring Stat",
+			path, lstat_modtime, stat_modtime)
+		return stat, nil
+	}
+
 }

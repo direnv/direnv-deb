@@ -2,8 +2,7 @@ direnv -- Unclutter your .profile
 =================================
 
 [![Built with Nix](https://builtwithnix.org/badge.svg)](https://builtwithnix.org)
-[![Build Status](https://travis-ci.org/direnv/direnv.svg?branch=master)](https://travis-ci.org/direnv/direnv)
-
+[![Build Status](https://dev.azure.com/direnv/direnv/_apis/build/status/direnv.direnv?branchName=master)](https://dev.azure.com/direnv/direnv/_build/latest?definitionId=1&branchName=master)
 `direnv` is an environment switcher for the shell. It knows how to hook into
 bash, zsh, tcsh, fish shell and elvish to load or unload environment variables
 depending on the current directory. This allows project-specific
@@ -21,7 +20,7 @@ used to build solutions similar to rbenv, pyenv and phpenv.
 
 ## Example
 
-```
+```sh
 $ cd ~/my_project
 $ echo ${FOO-nope}
 nope
@@ -51,12 +50,13 @@ direnv is packaged for a variety of systems:
 * [Debian](https://packages.debian.org/search?keywords=direnv&searchon=names&suite=all&section=all)
 * [Gentoo go-overlay](https://github.com/Dr-Terrible/go-overlay)
 * [NetBSD pkgsrc-wip](http://www.pkgsrc.org/wip/)
-* [NixOS](https://nixos.org/nixos/packages.html)
+* [NixOS](https://nixos.org/nixos/packages.html#direnv)
 * [OSX Homebrew](http://brew.sh/)
 * [openSUSE](https://build.opensuse.org/package/show/openSUSE%3AFactory/direnv)
 * [MacPorts](https://www.macports.org/)
 * [Ubuntu](https://packages.ubuntu.com/search?keywords=direnv&searchon=names&suite=all&section=all)
 * [GNU Guix](https://www.gnu.org/software/guix/)
+* [Snap](https://snapcraft.io/direnv)
 
 See also:
 
@@ -122,7 +122,7 @@ eval "$(direnv hook zsh)"
 Add the following line at the end of the `~/.config/fish/config.fish` file:
 
 ```fish
-eval (direnv hook fish)
+direnv hook fish | source
 ```
 
 ### TCSH
@@ -194,6 +194,9 @@ It's also possible to create your own extensions by creating a bash file at
 
 #### Loading layered .envrc
 
+NOTE: the authorization framework doesn't apply here and all the `.envrc` will
+be loaded without verification
+
 Let's say you have the following structure:
 
 - "/a/.envrc"
@@ -205,7 +208,7 @@ If you add the following line in "/a/b/.envrc", you can load both of the
 ```sh
 source_env ..
 ```
-In the general case `source_up` will load any .envrc higher up in the folder structure. This allows you to truly enable arbitrary heirarchical stuctures of `.envrc` usage.
+In the general case `source_up` will load any .envrc higher up in the folder structure. This allows you to truly enable arbitrary hierarchical stuctures of `.envrc` usage.
 
 ```sh
 source_up
@@ -213,7 +216,7 @@ source_up
 
 ## Common things people don't know
 
-Based on GitHub issues interractions, here are the top things that have been confusing for users:
+Based on GitHub issues interactions, here are the top things that have been confusing for users:
 
 1. direnv has a standard library of functions, a collection of utilities that I found useful to have and accumulated over the years. If you know how to read bash, you can find it here: https://github.com/direnv/direnv/blob/master/stdlib.sh
 
@@ -243,8 +246,6 @@ For longer form discussions you can also write to <mailto:direnv-discuss@googleg
 Or drop by on [IRC (#direnv on freenode)](irc://irc.freenode.net/#direnv) to
 have a chat. If you ask a question make sure to stay around as not everyone is
 active all day.
-
-[![Build Status](https://api.travis-ci.org/direnv/direnv.png?branch=master)](http://travis-ci.org/direnv/direnv)
 
 ## COPYRIGHT
 
