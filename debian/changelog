@@ -1,3 +1,12 @@
+direnv (2.20.1-1) unstable; urgency=medium
+
+  * New upstream version 2.20.1
+  * Refresh patches for new release
+  * Escape grep arguments in stdlib.sh
+  * Update build dependencies - tcsh, zsh
+
+ -- Punit Agrawal <punit@debian.org>  Sat, 20 Jul 2019 07:30:26 +0900
+
 direnv (2.18.2-2) unstable; urgency=medium
 
   * Add ruby as a dependency
