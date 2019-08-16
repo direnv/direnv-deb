@@ -1,3 +1,9 @@
+direnv (2.20.1-2) unstable; urgency=medium
+
+  * Explicitly specify GOCACHE to build with Go 1.12
+
+ -- Punit Agrawal <punit@debian.org>  Sat, 17 Aug 2019 00:01:56 +0900
+
 direnv (2.20.1-1) unstable; urgency=medium
 
   * New upstream version 2.20.1
