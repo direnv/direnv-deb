@@ -5,8 +5,10 @@
 # export DH_VERBOSE=1
 
 export GOPATH=$(CURDIR)
+export GOCACHE=$(CURDIR)/.cache
 
 %:
+	echo "HOME="${HOME}
 	dh $@
 
 override_dh_auto_build:
