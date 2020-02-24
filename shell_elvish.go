@@ -7,7 +7,8 @@ import (
 
 type elvish struct{}
 
-var ELVISH Shell = elvish{}
+// Elvish add support for the elvish shell
+var Elvish Shell = elvish{}
 
 func (elvish) Hook() (string, error) {
 	return `## hook for direnv
@@ -17,10 +18,10 @@ func (elvish) Hook() (string, error) {
 		if (> (count $m) 0) {
 			m = (explode $m)
 			keys $m | each [k]{
-				if (==s $k 'null') {
-					unset-env $k
-				} else {
+				if $m[$k] {
 					set-env $k $m[$k]
+				} else {
+					unset-env $k
 				}
 			}
 		}

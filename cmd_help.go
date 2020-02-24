@@ -5,20 +5,20 @@ import (
 	"strings"
 )
 
-// `direnv help`
+// CmdHelp is `direnv help`
 var CmdHelp = &Cmd{
 	Name:    "help",
 	Desc:    "shows this help",
 	Args:    []string{"[SHOW_PRIVATE]"},
 	Aliases: []string{"--help"},
-	Fn: func(env Env, args []string) (err error) {
+	Action: actionSimple(func(env Env, args []string) (err error) {
 		var showPrivate = len(args) > 1
 		fmt.Printf(`direnv v%s
 Usage: direnv COMMAND [...ARGS]
 
 Available commands
 ------------------
-`, VERSION)
+`, Version)
 		for _, cmd := range CmdList {
 			var opts string
 			if len(cmd.Args) > 0 {
@@ -37,5 +37,5 @@ Available commands
 			fmt.Println("* = private commands")
 		}
 		return
-	},
+	}),
 }

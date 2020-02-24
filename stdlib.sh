@@ -8,13 +8,18 @@
 # SC1091: Not following: (file missing)
 # SC1117: Backslash is literal in "\n". Prefer explicit escaping: "\\n".
 # SC2059: Don't use variables in the printf format string. Use printf "..%s.." "$foo".
-set -e
+shopt -s gnu_errfmt
+shopt -s nullglob
+
 
 # NOTE: don't touch the RHS, it gets replaced at runtime
 direnv="$(command -v direnv)"
 
 # Config, change in the direnvrc
 DIRENV_LOG_FORMAT="${DIRENV_LOG_FORMAT-direnv: %s}"
+
+# Where direnv configuration should be stored
+direnv_config_dir=${XDG_CONFIG_DIR:-$HOME/.config}/direnv
 
 # This variable can be used by programs to detect when they are running inside
 # of a .envrc evaluation context. It is ignored by the direnv diffing
@@ -118,7 +123,7 @@ expand_path() {
 # Loads a ".env" file into the current environment
 #
 dotenv() {
-  local path=$1
+  local path=${1:-}
   if [[ -z $path ]]; then
     path=$PWD/.env
   elif [[ -d $path ]]; then
@@ -198,8 +203,12 @@ find_up() {
 source_env() {
   local rcpath=${1/#\~/$HOME}
   local rcfile
-  if ! [[ -f $rcpath ]]; then
+  if [[ -d $rcpath ]]; then
     rcpath=$rcpath/.envrc
+  fi
+  if [[ ! -e $rcpath ]]; then
+    log_status "referenced $rcpath does not exist"
+    return 1
   fi
 
   rcfile=$(user_rel_path "$rcpath")
@@ -218,15 +227,14 @@ source_env() {
   popd >/dev/null
 }
 
-# Usage: watch_file <filename>
+# Usage: watch_file <filename> [<filename> ...]
 #
-# Adds <path> to the list of files that direnv will watch for changes - useful when the contents
-# of a file influence how variables are set - especially in direnvrc
+# Adds each <filename> to the list of files that direnv will watch for changes -
+# useful when the contents of a file influence how variables are set -
+# especially in direnvrc
 #
 watch_file() {
-  local file=${1/#\~/$HOME}
-
-  eval "$("$direnv" watch "$file")"
+  eval "$("$direnv" watch bash "$@")"
 }
 
 # Usage: source_up [<filename>]
@@ -235,11 +243,7 @@ watch_file() {
 #
 # NOTE: the other ".envrc" is not checked by the security framework.
 source_up() {
-  local file=$1
-  local dir
-  if [[ -z $file ]]; then
-    file=.envrc
-  fi
+  local dir file=${1:-.envrc}
   dir=$(cd .. && find_up "$file")
   if [[ -n $dir ]]; then
     source_env "$dir"
@@ -255,18 +259,48 @@ source_up() {
 # the results with direnv_load.
 #
 direnv_load() {
-  local exports
-  # backup and restore watches in case of nix-shell --pure
-  local __watches=$DIRENV_WATCHES
+  # Backup watches in case of `nix-shell --pure`
+  local prev_watches=$DIRENV_WATCHES
+  local prev_dump_file_path=${DIRENV_DUMP_FILE_PATH:-}
 
-  exports=$("$direnv" apply_dump <("$@"))
+  # Create pipe
+  DIRENV_DUMP_FILE_PATH=$(mktemp -u)
+  export DIRENV_DUMP_FILE_PATH
+  mkfifo "$DIRENV_DUMP_FILE_PATH"
+
+  # Run program in the background
+  ("$@")&
+
+  # Apply the output of the dump
+  local exports
+  exports=$("$direnv" apply_dump "$DIRENV_DUMP_FILE_PATH")
   local es=$?
+
+  # Regroup
+  rm "$DIRENV_DUMP_FILE_PATH"
+  wait # wait on the child process to exit
+  local es2=$?
+
   if [[ $es -ne 0 ]]; then
     return $es
   fi
+
+  if [[ $es2 -ne 0 ]]; then
+    return $es2
+  fi
+
   eval "$exports"
 
-  export DIRENV_WATCHES=$__watches
+  # Restore watches if the dump wiped them
+  if [[ -z "$DIRENV_WATCHES" ]]; then
+    export DIRENV_WATCHES=$prev_watches
+  fi
+  # Allow nesting
+  if [[ -n "$prev_dump_file_path" ]]; then
+    export DIRENV_DUMP_FILE_PATH=$prev_dump_file_path
+  else
+    unset DIRENV_DUMP_FILE_PATH
+  fi
 }
 
 # Usage: PATH_add <path> [<path> ...]
@@ -295,8 +329,7 @@ PATH_add() {
 #
 # Works like PATH_add except that it's for an arbitrary <varname>.
 path_add() {
-  local path
-  local var_name="$1"
+  local path i var_name="$1"
   # split existing paths into an array
   declare -a path_array
   IFS=: read -ra path_array <<<"${!1}"
@@ -419,9 +452,10 @@ layout_php() {
 
 # Usage: layout python <python_exe>
 #
-# Creates and loads a virtualenv environment under
+# Creates and loads a virtual environment under
 # "$direnv_layout_dir/python-$python_version".
 # This forces the installation of any egg into the project's sub-folder.
+# For python older then 3.3 this requires virtualenv to be installed.
 #
 # It's possible to specify the python executable if you want to use different
 # versions of python.
@@ -433,21 +467,35 @@ layout_python() {
   old_env=$(direnv_layout_dir)/virtualenv
   unset PYTHONHOME
   if [[ -d $old_env && $python == python ]]; then
-    export VIRTUAL_ENV=$old_env
+    VIRTUAL_ENV=$old_env
   else
-    local python_version
-    python_version=$("$python" -c "import platform as p;print(p.python_version())")
+    local python_version ve
+    # shellcheck disable=SC2046
+    read -r python_version ve <<<$($python -c "import pkgutil as u, platform as p;ve='venv' if u.find_loader('venv') else ('virtualenv' if u.find_loader('virtualenv') else '');print(p.python_version()+' '+ve)")
     if [[ -z $python_version ]]; then
       log_error "Could not find python's version"
       return 1
     fi
 
     VIRTUAL_ENV=$(direnv_layout_dir)/python-$python_version
-    export VIRTUAL_ENV
-    if [[ ! -d $VIRTUAL_ENV ]]; then
-      virtualenv "--python=$python" "$@" "$VIRTUAL_ENV"
-    fi
+    case $ve in
+      "venv")
+        if [[ ! -d $VIRTUAL_ENV ]]; then
+          $python -m venv "$@" "$VIRTUAL_ENV"
+        fi
+        ;;
+      "virtualenv")
+        if [[ ! -d $VIRTUAL_ENV ]]; then
+          $python -m virtualenv "$@" "$VIRTUAL_ENV"
+        fi
+        ;;
+      *)
+        log_error "Error: neither venv nor virtualenv are available."
+        return 1
+        ;;
+    esac
   fi
+  export VIRTUAL_ENV
   PATH_add "$VIRTUAL_ENV/bin"
 }
 
@@ -505,24 +553,55 @@ layout_anaconda() {
 # virtualenv from the Pipfile located in the same directory.
 #
 layout_pipenv() {
-  local venv
   PIPENV_PIPFILE="${PIPENV_PIPFILE:-Pipfile}"
   if [[ ! -f "$PIPENV_PIPFILE" ]]; then
     log_error "No Pipfile found.  Use \`pipenv\` to create a \`$PIPENV_PIPFILE\` first."
     exit 2
   fi
 
-  venv=$(pipenv --bare --venv 2>/dev/null)
+  VIRTUAL_ENV=$(pipenv --venv 2>/dev/null ; true)
 
-  if [[ -z $venv || ! -d $venv ]]; then
+  if [[ -z $VIRTUAL_ENV || ! -d $VIRTUAL_ENV ]]; then
     pipenv install --dev
+    VIRTUAL_ENV=$(pipenv --venv)
   fi
-
-  VIRTUAL_ENV=$(pipenv --venv)
 
   PATH_add "$VIRTUAL_ENV/bin"
   export PIPENV_ACTIVE=1
   export VIRTUAL_ENV
+}
+
+# Usage: layout pyenv <python version number> [<python version number> ...]
+#
+# Example:
+#
+#    layout pyenv 3.6.7
+#
+# Uses pyenv and layout_python to create and load a virtual environment under
+# "$direnv_layout_dir/python-$python_version".
+#
+layout_pyenv() {
+  unset PYENV_VERSION
+  # layout_python prepends each python version to the PATH, so we add each
+  # version in reverse order so that the first listed version ends up
+  # first in the path
+  local i
+  for ((i = $#; i > 0; i--)); do
+    local python_version=${!i}
+    local pyenv_python
+    pyenv_python=$(pyenv root)/versions/${python_version}/bin/python
+    if [[ -x "$pyenv_python" ]]; then
+      if layout_python "$pyenv_python"; then
+        # e.g. Given "use pyenv 3.6.9 2.7.16", PYENV_VERSION becomes "3.6.9:2.7.16"
+        PYENV_VERSION=${python_version}${PYENV_VERSION:+:$PYENV_VERSION}
+      fi
+    else
+      log_error "pyenv: version '$python_version' not installed"
+      return 1
+    fi
+  done
+
+  [[ -n "$PYENV_VERSION" ]] && export PYENV_VERSION
 }
 
 # Usage: layout ruby
@@ -548,6 +627,13 @@ layout_ruby() {
 
   PATH_add "$GEM_HOME/bin"
   PATH_add "$BUNDLE_BIN"
+}
+
+# Usage: layout julia
+#
+# Sets the JULIA_PROJECT environment variable to the current directory.
+layout_julia() {
+  export JULIA_PROJECT=$PWD
 }
 
 # Usage: use <program_name> [<version>]
@@ -600,7 +686,7 @@ rvm() {
 # Usage: use node
 # Loads NodeJS version from a `.node-version` or `.nvmrc` file.
 #
-# Usage: use node <version>
+# Usage: use node [<version>]
 # Loads specified NodeJS version.
 #
 # If you specify a partial NodeJS version (i.e. `4.2`), a fuzzy match
@@ -615,23 +701,23 @@ rvm() {
 #   Overrides the default version prefix.
 
 use_node() {
-  local version=$1
+  local version=${1:-}
   local via=""
   local node_version_prefix=${NODE_VERSION_PREFIX-node-v}
   local node_wanted
   local node_prefix
 
-  if [[ -z $NODE_VERSIONS ]] || [[ ! -d $NODE_VERSIONS ]]; then
+  if [[ -z ${NODE_VERSIONS:-} || ! -d $NODE_VERSIONS ]]; then
     log_error "You must specify a \$NODE_VERSIONS environment variable and the directory specified must exist!"
     return 1
   fi
 
-  if [[ -z $version ]] && [[ -f .nvmrc ]]; then
+  if [[ -z $version && -f .nvmrc ]]; then
     version=$(<.nvmrc)
     via=".nvmrc"
   fi
 
-  if [[ -z $version ]] && [[ -f .node-version ]]; then
+  if [[ -z $version && -f .node-version ]]; then
     version=$(<.node-version)
     via=".node-version"
   fi
@@ -685,8 +771,7 @@ use_node() {
 use_nix() {
   direnv_load nix-shell --show-trace "$@" --run "$(join_args "$direnv" dump)"
   if [[ $# == 0 ]]; then
-    watch_file default.nix
-    watch_file shell.nix
+    watch_file default.nix shell.nix
   fi
 }
 
@@ -704,11 +789,44 @@ use_guix() {
   eval "$(guix environment "$@" --search-paths)"
 }
 
-## Load the global ~/.direnvrc if present
-if [[ -f ${XDG_CONFIG_HOME:-$HOME/.config}/direnv/direnvrc ]]; then
-  # shellcheck disable=SC1090
-  source "${XDG_CONFIG_HOME:-$HOME/.config}/direnv/direnvrc" >&2
-elif [[ -f $HOME/.direnvrc ]]; then
-  # shellcheck disable=SC1090
-  source "$HOME/.direnvrc" >&2
-fi
+# Usage: direnv_version <version_at_least>
+#
+# Checks that the direnv version is at least old as <version_at_least>.
+direnv_version() {
+  "$direnv" version "$@"
+}
+
+# Usage: __main__ <cmd> [...<args>]
+#
+# Used by rc.go
+__main__() {
+  # reserve stdout for dumping
+  exec 3>&1
+  exec 1>&2
+
+  __dump_at_exit() {
+    local ret=$?
+    "$direnv" dump json 3
+    trap - EXIT
+    exit "$ret"
+  }
+  trap __dump_at_exit EXIT
+
+  # load direnv libraries
+  for lib in "$direnv_config_dir/lib/"*.sh; do
+    # shellcheck disable=SC1090
+    source "$lib"
+  done
+
+  # load the global ~/.direnvrc if present
+  if [[ -f $direnv_config_dir/direnvrc ]]; then
+    # shellcheck disable=SC1090
+    source "$direnv_config_dir/direnvrc" >&2
+  elif [[ -f $HOME/.direnvrc ]]; then
+    # shellcheck disable=SC1090
+    source "$HOME/.direnvrc" >&2
+  fi
+
+  # and finally load the .envrc
+  "$@"
+}

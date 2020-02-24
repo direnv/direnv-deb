@@ -28,14 +28,8 @@ SHELL = bash
 .PHONY: all
 all: build man
 
-export GOPATH = $(CURDIR)/.gopath
-export GO15VENDOREXPERIMENT=1
-
-# Creates the GOPATH for us
-base = $(GOPATH)/src/$(PACKAGE)
-$(base):
-	@mkdir -p "$(dir $@)"
-	@ln -sf "$(CURDIR)" "$@"
+export GO111MODULE=on
+export GOFLAGS=-mod=vendor
 
 ############################################################################
 # Build
@@ -62,20 +56,21 @@ ifdef BASH_PATH
 	GO_LDFLAGS += -X main.bashPath=$(BASH_PATH)
 endif
 
-ifdef GO_LDFLAGS
-	GO_FLAGS += -ldflags '$(GO_LDFLAGS)'
+ifneq ($(strip $(GO_LDFLAGS)),)
+	GO_BUILD_FLAGS = -ldflags '$(GO_LDFLAGS)'
 endif
 
-direnv: stdlib.go *.go | $(base)
-	cd "$(base)" && $(GO) build $(GO_FLAGS) -o $(exe)
+direnv: stdlib.go *.go
+	$(GO) build $(GO_BUILD_FLAGS) -o $(exe)
 
 stdlib.go: stdlib.sh
-	cat $< | ./script/str2go main STDLIB $< > $@
+	cat $< | ./script/str2go main StdLib $< > $@
 
 version.go: version.txt
 	echo package main > $@
 	echo >> $@
-	echo 'const VERSION = "$(shell cat $<)"' >> $@
+	echo "// Version is direnv's version"
+	echo 'const Version = "$(shell cat $<)"' >> $@
 
 ############################################################################
 # Format all the things
@@ -109,8 +104,10 @@ man: $(roffs)
 ############################################################################
 
 tests = \
-			 	test-shellcheck \
+				test-shellcheck \
+				test-stdlib \
 				test-go \
+				test-go-lint \
 				test-go-fmt \
 				test-bash \
 				test-elvish \
@@ -123,14 +120,17 @@ test: build $(tests)
 	@echo
 	@echo SUCCESS!
 
-test-go: | $(base)
-	cd "$(base)" && $(GO) test -v ./...
-
-test-go-fmt:
-	[ $$($(GO) fmt | tee /dev/stderr | wc -l) = 0 ]
-
 test-shellcheck:
 	shellcheck stdlib.sh
+
+test-stdlib: build
+	./test/stdlib.bash
+
+test-go:
+	$(GO) test -v ./...
+
+test-go-lint:
+	golangci-lint run
 
 test-bash:
 	bash ./test/direnv-test.bash
@@ -160,7 +160,7 @@ install: all
 	cp -R man/*.1 $(MANDIR)/man1
 
 .PHONY: dist
-dist: | $(base)
+dist:
 	@command -v gox >/dev/null || (echo "Could not generate dist because gox is missing. Run: go get -u github.com/mitchellh/gox"; false)
-	cd "$(base)" && gox -output "$(DISTDIR)/direnv.{{.OS}}-{{.Arch}}"
+	gox -output "$(DISTDIR)/direnv.{{.OS}}-{{.Arch}}"
 

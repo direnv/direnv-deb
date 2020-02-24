@@ -1,12 +1,86 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
 	"sort"
 	"strings"
 )
 
+// CmdExport is `direnv export $0`
+var CmdExport = &Cmd{
+	Name:    "export",
+	Desc:    "loads an .envrc and prints the diff in terms of exports",
+	Args:    []string{"SHELL"},
+	Private: true,
+	Action:  cmdWithWarnTimeout(actionWithConfig(actionWithCancel(exportCommand))),
+}
+
+func actionWithCancel(fn func(ctx context.Context, env Env, args []string, config *Config) error) actionWithConfig {
+	return func(env Env, args []string, config *Config) error {
+		ctx, cancel := context.WithCancel(context.Background())
+
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+
+		// cancel the context on Ctrl-C
+		go func() {
+			<-c
+			cancel()
+		}()
+
+		return fn(ctx, env, args, config)
+	}
+}
+
+func exportCommand(ctx context.Context, env Env, args []string, config *Config) (err error) {
+	defer log.SetPrefix(log.Prefix())
+	log.SetPrefix(log.Prefix() + "export:")
+	logDebug("start")
+
+	ec := ExportContext{
+		env:    env,
+		config: config,
+	}
+
+	var target string
+
+	if len(args) > 1 {
+		target = args[1]
+	}
+
+	shell := DetectShell(target)
+	if shell == nil {
+		return fmt.Errorf("unknown target shell '%s'", target)
+	}
+
+	logDebug("loading RCs")
+	if ec.getRCs(); !ec.hasRC() {
+		return nil
+	}
+
+	logDebug("updating RC")
+	if err = ec.updateRC(ctx); err != nil {
+		logDebug("err: %v", err)
+	}
+
+	if ec.newEnv == nil {
+		logDebug("newEnv nil, exiting")
+		return
+	}
+
+	diffString := ec.diffString(shell)
+	logDebug("env diff %s", diffString)
+	fmt.Print(diffString)
+
+	return
+}
+
+// ExportContext is a sort of state holder struct that is being used to
+// record changes before the export finishes.
 type ExportContext struct {
 	config   *Config
 	foundRC  *RC
@@ -16,76 +90,71 @@ type ExportContext struct {
 	newEnv   Env
 }
 
-func (self *ExportContext) loadConfig() (err error) {
-	self.config, err = LoadConfig(self.env)
-	return
+func (ec *ExportContext) getRCs() {
+	ec.loadedRC = ec.config.LoadedRC()
+	ec.foundRC = ec.config.FindRC()
 }
 
-func (self *ExportContext) getRCs() {
-	self.loadedRC = self.config.LoadedRC()
-	self.foundRC = self.config.FindRC()
+func (ec *ExportContext) hasRC() bool {
+	return ec.foundRC != nil || ec.loadedRC != nil
 }
 
-func (self *ExportContext) hasRC() bool {
-	return self.foundRC != nil || self.loadedRC != nil
-}
-
-func (self *ExportContext) updateRC() (err error) {
+func (ec *ExportContext) updateRC(ctx context.Context) (err error) {
 	defer log.SetPrefix(log.Prefix())
 	log.SetPrefix(log.Prefix() + "update:")
 
-	self.oldEnv = self.env.Copy()
-	var backupDiff *EnvDiff
+	ec.oldEnv = ec.env.Copy()
 
-	if backupDiff, err = self.config.EnvDiff(); err != nil {
+	var backupDiff *EnvDiff
+	if backupDiff, err = ec.config.EnvDiff(); err == nil && backupDiff != nil {
+		ec.oldEnv = backupDiff.Reverse().Patch(ec.env)
+	}
+	if err != nil {
 		err = fmt.Errorf("EnvDiff() failed: %q", err)
 		return
 	}
 
-	self.oldEnv = backupDiff.Reverse().Patch(self.env)
-
-	log_debug("Determining action:")
-	log_debug("foundRC: %#v", self.foundRC)
-	log_debug("loadedRC: %#v", self.loadedRC)
+	logDebug("Determining action:")
+	logDebug("foundRC: %#v", ec.foundRC)
+	logDebug("loadedRC: %#v", ec.loadedRC)
 
 	switch {
-	case self.foundRC == nil:
-		log_debug("no RC found, unloading")
-		err = self.unloadEnv()
-	case self.loadedRC == nil:
-		log_debug("no RC (implies no DIRENV_DIFF),loading")
-		err = self.loadRC()
-	case self.loadedRC.path != self.foundRC.path:
-		log_debug("new RC, loading")
-		err = self.loadRC()
-	case self.loadedRC.times.Check() != nil:
-		log_debug("file changed, reloading")
-		err = self.loadRC()
+	case ec.foundRC == nil:
+		logDebug("no RC found, unloading")
+		ec.unloadEnv()
+	case ec.loadedRC == nil:
+		logDebug("no RC (implies no DIRENV_DIFF),loading")
+		err = ec.loadRC(ctx)
+	case ec.loadedRC.path != ec.foundRC.path:
+		logDebug("new RC, loading")
+		err = ec.loadRC(ctx)
+	case ec.loadedRC.times.Check() != nil:
+		logDebug("file changed, reloading")
+		err = ec.loadRC(ctx)
 	default:
-		log_debug("no update needed")
+		logDebug("no update needed")
 	}
 
 	return
 }
 
-func (self *ExportContext) loadRC() (err error) {
-	self.newEnv, err = self.foundRC.Load(self.config, self.oldEnv)
+func (ec *ExportContext) loadRC(ctx context.Context) (err error) {
+	ec.newEnv, err = ec.foundRC.Load(ctx, ec.config, ec.oldEnv)
 	return
 }
 
-func (self *ExportContext) unloadEnv() (err error) {
-	log_status(self.env, "unloading")
-	self.newEnv = self.oldEnv.Copy()
-	cleanEnv(self.newEnv)
-	return
+func (ec *ExportContext) unloadEnv() {
+	logStatus(ec.env, "unloading")
+	ec.newEnv = ec.oldEnv.Copy()
+	cleanEnv(ec.newEnv)
 }
 
 func cleanEnv(env Env) {
 	env.CleanContext()
 }
 
-func (self *ExportContext) diffString(shell Shell) string {
-	oldDiff := self.oldEnv.Diff(self.newEnv)
+func (ec *ExportContext) diffString(shell Shell) string {
+	oldDiff := ec.oldEnv.Diff(ec.newEnv)
 	if oldDiff.Any() {
 		var out []string
 		for key := range oldDiff.Prev {
@@ -109,65 +178,12 @@ func (self *ExportContext) diffString(shell Shell) string {
 
 		sort.Strings(out)
 		if len(out) > 0 {
-			log_status(self.env, "export %s", strings.Join(out, " "))
+			logStatus(ec.env, "export %s", strings.Join(out, " "))
 		}
 	}
 
-	diff := self.env.Diff(self.newEnv)
+	diff := ec.env.Diff(ec.newEnv)
 	return diff.ToShell(shell)
-}
-
-func exportCommand(env Env, args []string) (err error) {
-	defer log.SetPrefix(log.Prefix())
-	log.SetPrefix(log.Prefix() + "export:")
-	log_debug("start")
-	context := ExportContext{env: env}
-
-	var target string
-
-	if len(args) > 1 {
-		target = args[1]
-	}
-
-	shell := DetectShell(target)
-	if shell == nil {
-		return fmt.Errorf("Unknown target shell '%s'", target)
-	}
-
-	log_debug("load config")
-	if err = context.loadConfig(); err != nil {
-		return
-	}
-
-	log_debug("loading RCs")
-	if context.getRCs(); !context.hasRC() {
-		return nil
-	}
-
-	log_debug("updating RC")
-	if err = context.updateRC(); err != nil {
-		log_debug("err: %v", err)
-	}
-
-	if context.newEnv == nil {
-		log_debug("newEnv nil, exiting")
-		return
-	}
-
-	diffString := context.diffString(shell)
-	log_debug("env diff %s", diffString)
-	fmt.Print(diffString)
-
-	return
-}
-
-// `direnv export $0`
-var CmdExport = &Cmd{
-	Name:    "export",
-	Desc:    "loads an .envrc and prints the diff in terms of exports",
-	Args:    []string{"SHELL"},
-	Private: true,
-	Fn:      exportCommand,
 }
 
 func direnvKey(key string) bool {

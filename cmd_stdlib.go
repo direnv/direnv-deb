@@ -5,17 +5,12 @@ import (
 	"strings"
 )
 
-// `direnv stdlib`
+// CmdStdlib is `direnv stdlib`
 var CmdStdlib = &Cmd{
 	Name: "stdlib",
 	Desc: "Displays the stdlib available in the .envrc execution context",
-	Fn: func(env Env, args []string) (err error) {
-		var config *Config
-		if config, err = LoadConfig(env); err != nil {
-			return
-		}
-
-		fmt.Println(strings.Replace(STDLIB, "$(command -v direnv)", config.SelfPath, 1))
-		return
-	},
+	Action: actionWithConfig(func(env Env, args []string, config *Config) error {
+		fmt.Println(strings.Replace(StdLib, "$(command -v direnv)", config.SelfPath, 1))
+		return nil
+	}),
 }

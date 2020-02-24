@@ -9,81 +9,78 @@ import (
 	"strings"
 )
 
-// `direnv edit [PATH_TO_RC]`
+// CmdEdit is `direnv edit [PATH_TO_RC]`
 var CmdEdit = &Cmd{
 	Name: "edit",
 	Desc: `Opens PATH_TO_RC or the current .envrc into an $EDITOR and allow
   the file to be loaded afterwards.`,
 	Args:   []string{"[PATH_TO_RC]"},
-	NoWait: true,
-	Fn: func(env Env, args []string) (err error) {
-		var config *Config
-		var rcPath string
-		var times *FileTimes
-		var foundRC *RC
+	Action: actionWithConfig(cmdEditAction),
+}
 
-		defer log.SetPrefix(log.Prefix())
-		log.SetPrefix(log.Prefix() + "cmd_edit: ")
+func cmdEditAction(env Env, args []string, config *Config) (err error) {
+	var rcPath string
+	var times *FileTimes
+	var foundRC *RC
 
-		if config, err = LoadConfig(env); err != nil {
-			return
+	defer log.SetPrefix(log.Prefix())
+	log.SetPrefix(log.Prefix() + "cmd_edit: ")
+
+	foundRC = config.FindRC()
+	if foundRC != nil {
+		times = &foundRC.times
+	}
+
+	if len(args) > 1 {
+		rcPath = args[1]
+		fi, _ := os.Stat(rcPath)
+		if fi != nil && fi.IsDir() {
+			rcPath = filepath.Join(rcPath, ".envrc")
 		}
-
-		foundRC = config.FindRC()
-		if foundRC != nil {
-			times = &foundRC.times
+	} else {
+		if foundRC == nil {
+			return fmt.Errorf(".envrc not found. Use `direnv edit .` to create a new envrc in the current directory")
 		}
+		rcPath = foundRC.path
+	}
 
-		if len(args) > 1 {
-			rcPath = args[1]
-			fi, _ := os.Stat(rcPath)
-			if fi != nil && fi.IsDir() {
-				rcPath = filepath.Join(rcPath, ".envrc")
-			}
-		} else {
-			if foundRC == nil {
-				return fmt.Errorf(".envrc not found. Use `direnv edit .` to create a new envrc in the current directory.")
-			}
-			rcPath = foundRC.path
-		}
-
-		editor := env["EDITOR"]
+	editor := env["EDITOR"]
+	if editor == "" {
+		logError("$EDITOR not found.")
+		editor = detectEditor(env["PATH"])
 		if editor == "" {
-			log_error("$EDITOR not found.")
-			editor = detectEditor(env["PATH"])
-			if editor == "" {
-				err = fmt.Errorf("Could not find a default editor in the PATH")
-				return
-			}
-		}
-
-		run := fmt.Sprintf("%s %s", editor, BashEscape(rcPath))
-
-		cmd := exec.Command(config.BashPath, "-c", run)
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err = cmd.Run(); err != nil {
+			err = fmt.Errorf("could not find a default editor in the PATH")
 			return
 		}
+	}
 
-		foundRC = FindRC(rcPath, config)
-		log_debug("foundRC: %#v", foundRC)
-		log_debug("times: %#v", times)
-		if times != nil {
-			log_debug("times.Check(): %#v", times.Check())
-		}
-		if foundRC != nil && (times == nil || times.Check() != nil) {
-			foundRC.Allow()
-		}
+	run := fmt.Sprintf("%s %s", editor, BashEscape(rcPath))
 
+	cmd := exec.Command(config.BashPath, "-c", run)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err = cmd.Run(); err != nil {
 		return
-	},
+	}
+
+	foundRC = FindRC(rcPath, config)
+	logDebug("foundRC: %#v", foundRC)
+	logDebug("times: %#v", times)
+	if times != nil {
+		logDebug("times.Check(): %#v", times.Check())
+	}
+	if foundRC != nil && (times == nil || times.Check() != nil) {
+		err = foundRC.Allow()
+	}
+
+	return
 }
 
 // Utils
 
-var EDITORS = [][]string{
+// Editors contains a list of known editors and how to start them.
+var Editors = [][]string{
 	{"subl", "-w"},
 	{"mate", "-w"},
 	{"open", "-t", "-W"}, // Opens with the default text editor on mac
@@ -93,7 +90,7 @@ var EDITORS = [][]string{
 }
 
 func detectEditor(pathenv string) string {
-	for _, editor := range EDITORS {
+	for _, editor := range Editors {
 		if _, err := lookPath(editor[0], pathenv); err == nil {
 			return strings.Join(editor, " ")
 		}

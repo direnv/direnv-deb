@@ -6,16 +6,41 @@ import (
 	"time"
 )
 
+type actionSimple func(env Env, args []string) error
+
+func (fn actionSimple) Call(env Env, args []string, config *Config) error {
+	return fn(env, args)
+}
+
+type actionWithConfig func(env Env, args []string, config *Config) error
+
+func (fn actionWithConfig) Call(env Env, args []string, config *Config) error {
+	var err error
+	if config == nil {
+		config, err = LoadConfig(env)
+		if err != nil {
+			return err
+		}
+	}
+
+	return fn(env, args, config)
+}
+
+type action interface {
+	Call(env Env, args []string, config *Config) error
+}
+
+// Cmd represents a direnv sub-command
 type Cmd struct {
 	Name    string
 	Desc    string
 	Args    []string
 	Aliases []string
-	NoWait  bool
 	Private bool
-	Fn      func(env Env, args []string) error
+	Action  action
 }
 
+// CmdList contains the list of all direnv sub-commands
 var CmdList []*Cmd
 
 func init() {
@@ -38,10 +63,30 @@ func init() {
 		CmdStdlib,
 		CmdVersion,
 		CmdWatch,
+		CmdWatchList,
 		CmdCurrent,
 	}
 }
 
+func cmdWithWarnTimeout(fn action) action {
+	return actionWithConfig(func(env Env, args []string, config *Config) (err error) {
+		done := make(chan bool, 1)
+		go func() {
+			select {
+			case <-done:
+				return
+			case <-time.After(config.WarnTimeout):
+				logError("(%v) is taking a while to execute. Use CTRL-C to give up.", args)
+			}
+		}()
+
+		err = fn.Call(env, args, config)
+		done <- true
+		return err
+	})
+}
+
+// CommandsDispatch is called by the main() function to dispatch to a sub-command
 func CommandsDispatch(env Env, args []string) error {
 	var command *Cmd
 	var commandName string
@@ -73,27 +118,8 @@ func CommandsDispatch(env Env, args []string) error {
 	}
 
 	if command == nil {
-		return fmt.Errorf("Command \"%s\" not found", commandPrefix)
+		return fmt.Errorf("command \"%s\" not found", commandPrefix)
 	}
 
-	done := make(chan bool, 1)
-	if !command.NoWait {
-		timeout, err := time.ParseDuration(env.Fetch("DIRENV_WARN_TIMEOUT", "5s"))
-		if err != nil {
-			log_error("invalid DIRENV_WARN_TIMEOUT: " + err.Error())
-			timeout = 5 * time.Second
-		}
-		go func() {
-			select {
-			case <-done:
-				return
-			case <-time.After(timeout):
-				log_error("(%v) is taking a while to execute. Use CTRL-C to give up.", args)
-			}
-		}()
-	}
-
-	err := command.Fn(env, commandArgs)
-	done <- true
-	return err
+	return command.Action.Call(env, commandArgs, nil)
 }

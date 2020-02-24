@@ -1,6 +1,7 @@
 package main
 
-const STDLIB = "#!/usr/bin/env bash\n" +
+// StdLib ...
+const StdLib = "#!/usr/bin/env bash\n" +
 	"#\n" +
 	"# These are the commands available in an .envrc context\n" +
 	"#\n" +
@@ -10,13 +11,18 @@ const STDLIB = "#!/usr/bin/env bash\n" +
 	"# SC1091: Not following: (file missing)\n" +
 	"# SC1117: Backslash is literal in \"\\n\". Prefer explicit escaping: \"\\\\n\".\n" +
 	"# SC2059: Don't use variables in the printf format string. Use printf \"..%s..\" \"$foo\".\n" +
-	"set -e\n" +
+	"shopt -s gnu_errfmt\n" +
+	"shopt -s nullglob\n" +
+	"\n" +
 	"\n" +
 	"# NOTE: don't touch the RHS, it gets replaced at runtime\n" +
 	"direnv=\"$(command -v direnv)\"\n" +
 	"\n" +
 	"# Config, change in the direnvrc\n" +
 	"DIRENV_LOG_FORMAT=\"${DIRENV_LOG_FORMAT-direnv: %s}\"\n" +
+	"\n" +
+	"# Where direnv configuration should be stored\n" +
+	"direnv_config_dir=${XDG_CONFIG_DIR:-$HOME/.config}/direnv\n" +
 	"\n" +
 	"# This variable can be used by programs to detect when they are running inside\n" +
 	"# of a .envrc evaluation context. It is ignored by the direnv diffing\n" +
@@ -120,7 +126,7 @@ const STDLIB = "#!/usr/bin/env bash\n" +
 	"# Loads a \".env\" file into the current environment\n" +
 	"#\n" +
 	"dotenv() {\n" +
-	"  local path=$1\n" +
+	"  local path=${1:-}\n" +
 	"  if [[ -z $path ]]; then\n" +
 	"    path=$PWD/.env\n" +
 	"  elif [[ -d $path ]]; then\n" +
@@ -200,8 +206,12 @@ const STDLIB = "#!/usr/bin/env bash\n" +
 	"source_env() {\n" +
 	"  local rcpath=${1/#\\~/$HOME}\n" +
 	"  local rcfile\n" +
-	"  if ! [[ -f $rcpath ]]; then\n" +
+	"  if [[ -d $rcpath ]]; then\n" +
 	"    rcpath=$rcpath/.envrc\n" +
+	"  fi\n" +
+	"  if [[ ! -e $rcpath ]]; then\n" +
+	"    log_status \"referenced $rcpath does not exist\"\n" +
+	"    return 1\n" +
 	"  fi\n" +
 	"\n" +
 	"  rcfile=$(user_rel_path \"$rcpath\")\n" +
@@ -211,7 +221,7 @@ const STDLIB = "#!/usr/bin/env bash\n" +
 	"  pushd \"$(dirname \"$rcpath\")\" >/dev/null\n" +
 	"  if [[ -f ./$(basename \"$rcpath\") ]]; then\n" +
 	"    log_status \"loading $rcfile\"\n" +
-	"    # shellcheck source=/dev/null\n" +
+	"    # shellcheck disable=SC1090\n" +
 	"    . \"./$(basename \"$rcpath\")\"\n" +
 	"  else\n" +
 	"    log_status \"referenced $rcfile does not exist\"\n" +
@@ -220,15 +230,14 @@ const STDLIB = "#!/usr/bin/env bash\n" +
 	"  popd >/dev/null\n" +
 	"}\n" +
 	"\n" +
-	"# Usage: watch_file <filename>\n" +
+	"# Usage: watch_file <filename> [<filename> ...]\n" +
 	"#\n" +
-	"# Adds <path> to the list of files that direnv will watch for changes - useful when the contents\n" +
-	"# of a file influence how variables are set - especially in direnvrc\n" +
+	"# Adds each <filename> to the list of files that direnv will watch for changes -\n" +
+	"# useful when the contents of a file influence how variables are set -\n" +
+	"# especially in direnvrc\n" +
 	"#\n" +
 	"watch_file() {\n" +
-	"  local file=${1/#\\~/$HOME}\n" +
-	"\n" +
-	"  eval \"$(\"$direnv\" watch \"$file\")\"\n" +
+	"  eval \"$(\"$direnv\" watch bash \"$@\")\"\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: source_up [<filename>]\n" +
@@ -237,11 +246,7 @@ const STDLIB = "#!/usr/bin/env bash\n" +
 	"#\n" +
 	"# NOTE: the other \".envrc\" is not checked by the security framework.\n" +
 	"source_up() {\n" +
-	"  local file=$1\n" +
-	"  local dir\n" +
-	"  if [[ -z $file ]]; then\n" +
-	"    file=.envrc\n" +
-	"  fi\n" +
+	"  local dir file=${1:-.envrc}\n" +
 	"  dir=$(cd .. && find_up \"$file\")\n" +
 	"  if [[ -n $dir ]]; then\n" +
 	"    source_env \"$dir\"\n" +
@@ -257,18 +262,48 @@ const STDLIB = "#!/usr/bin/env bash\n" +
 	"# the results with direnv_load.\n" +
 	"#\n" +
 	"direnv_load() {\n" +
-	"  local exports\n" +
-	"  # backup and restore watches in case of nix-shell --pure\n" +
-	"  local __watches=$DIRENV_WATCHES\n" +
+	"  # Backup watches in case of `nix-shell --pure`\n" +
+	"  local prev_watches=$DIRENV_WATCHES\n" +
+	"  local prev_dump_file_path=${DIRENV_DUMP_FILE_PATH:-}\n" +
 	"\n" +
-	"  exports=$(\"$direnv\" apply_dump <(\"$@\"))\n" +
+	"  # Create pipe\n" +
+	"  DIRENV_DUMP_FILE_PATH=$(mktemp -u)\n" +
+	"  export DIRENV_DUMP_FILE_PATH\n" +
+	"  mkfifo \"$DIRENV_DUMP_FILE_PATH\"\n" +
+	"\n" +
+	"  # Run program in the background\n" +
+	"  (\"$@\")&\n" +
+	"\n" +
+	"  # Apply the output of the dump\n" +
+	"  local exports\n" +
+	"  exports=$(\"$direnv\" apply_dump \"$DIRENV_DUMP_FILE_PATH\")\n" +
 	"  local es=$?\n" +
+	"\n" +
+	"  # Regroup\n" +
+	"  rm \"$DIRENV_DUMP_FILE_PATH\"\n" +
+	"  wait # wait on the child process to exit\n" +
+	"  local es2=$?\n" +
+	"\n" +
 	"  if [[ $es -ne 0 ]]; then\n" +
 	"    return $es\n" +
 	"  fi\n" +
+	"\n" +
+	"  if [[ $es2 -ne 0 ]]; then\n" +
+	"    return $es2\n" +
+	"  fi\n" +
+	"\n" +
 	"  eval \"$exports\"\n" +
 	"\n" +
-	"  export DIRENV_WATCHES=$__watches\n" +
+	"  # Restore watches if the dump wiped them\n" +
+	"  if [[ -z \"$DIRENV_WATCHES\" ]]; then\n" +
+	"    export DIRENV_WATCHES=$prev_watches\n" +
+	"  fi\n" +
+	"  # Allow nesting\n" +
+	"  if [[ -n \"$prev_dump_file_path\" ]]; then\n" +
+	"    export DIRENV_DUMP_FILE_PATH=$prev_dump_file_path\n" +
+	"  else\n" +
+	"    unset DIRENV_DUMP_FILE_PATH\n" +
+	"  fi\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: PATH_add <path> [<path> ...]\n" +
@@ -297,8 +332,7 @@ const STDLIB = "#!/usr/bin/env bash\n" +
 	"#\n" +
 	"# Works like PATH_add except that it's for an arbitrary <varname>.\n" +
 	"path_add() {\n" +
-	"  local path\n" +
-	"  local var_name=\"$1\"\n" +
+	"  local path i var_name=\"$1\"\n" +
 	"  # split existing paths into an array\n" +
 	"  declare -a path_array\n" +
 	"  IFS=: read -ra path_array <<<\"${!1}\"\n" +
@@ -421,9 +455,10 @@ const STDLIB = "#!/usr/bin/env bash\n" +
 	"\n" +
 	"# Usage: layout python <python_exe>\n" +
 	"#\n" +
-	"# Creates and loads a virtualenv environment under\n" +
+	"# Creates and loads a virtual environment under\n" +
 	"# \"$direnv_layout_dir/python-$python_version\".\n" +
 	"# This forces the installation of any egg into the project's sub-folder.\n" +
+	"# For python older then 3.3 this requires virtualenv to be installed.\n" +
 	"#\n" +
 	"# It's possible to specify the python executable if you want to use different\n" +
 	"# versions of python.\n" +
@@ -435,21 +470,35 @@ const STDLIB = "#!/usr/bin/env bash\n" +
 	"  old_env=$(direnv_layout_dir)/virtualenv\n" +
 	"  unset PYTHONHOME\n" +
 	"  if [[ -d $old_env && $python == python ]]; then\n" +
-	"    export VIRTUAL_ENV=$old_env\n" +
+	"    VIRTUAL_ENV=$old_env\n" +
 	"  else\n" +
-	"    local python_version\n" +
-	"    python_version=$(\"$python\" -c \"import platform as p;print(p.python_version())\")\n" +
+	"    local python_version ve\n" +
+	"    # shellcheck disable=SC2046\n" +
+	"    read -r python_version ve <<<$($python -c \"import pkgutil as u, platform as p;ve='venv' if u.find_loader('venv') else ('virtualenv' if u.find_loader('virtualenv') else '');print(p.python_version()+' '+ve)\")\n" +
 	"    if [[ -z $python_version ]]; then\n" +
 	"      log_error \"Could not find python's version\"\n" +
 	"      return 1\n" +
 	"    fi\n" +
 	"\n" +
 	"    VIRTUAL_ENV=$(direnv_layout_dir)/python-$python_version\n" +
-	"    export VIRTUAL_ENV\n" +
-	"    if [[ ! -d $VIRTUAL_ENV ]]; then\n" +
-	"      virtualenv \"--python=$python\" \"$@\" \"$VIRTUAL_ENV\"\n" +
-	"    fi\n" +
+	"    case $ve in\n" +
+	"      \"venv\")\n" +
+	"        if [[ ! -d $VIRTUAL_ENV ]]; then\n" +
+	"          $python -m venv \"$@\" \"$VIRTUAL_ENV\"\n" +
+	"        fi\n" +
+	"        ;;\n" +
+	"      \"virtualenv\")\n" +
+	"        if [[ ! -d $VIRTUAL_ENV ]]; then\n" +
+	"          $python -m virtualenv \"$@\" \"$VIRTUAL_ENV\"\n" +
+	"        fi\n" +
+	"        ;;\n" +
+	"      *)\n" +
+	"        log_error \"Error: neither venv nor virtualenv are available.\"\n" +
+	"        return 1\n" +
+	"        ;;\n" +
+	"    esac\n" +
 	"  fi\n" +
+	"  export VIRTUAL_ENV\n" +
 	"  PATH_add \"$VIRTUAL_ENV/bin\"\n" +
 	"}\n" +
 	"\n" +
@@ -507,24 +556,55 @@ const STDLIB = "#!/usr/bin/env bash\n" +
 	"# virtualenv from the Pipfile located in the same directory.\n" +
 	"#\n" +
 	"layout_pipenv() {\n" +
-	"  local venv\n" +
 	"  PIPENV_PIPFILE=\"${PIPENV_PIPFILE:-Pipfile}\"\n" +
 	"  if [[ ! -f \"$PIPENV_PIPFILE\" ]]; then\n" +
 	"    log_error \"No Pipfile found.  Use \\`pipenv\\` to create a \\`$PIPENV_PIPFILE\\` first.\"\n" +
 	"    exit 2\n" +
 	"  fi\n" +
 	"\n" +
-	"  venv=$(pipenv --bare --venv 2>/dev/null)\n" +
+	"  VIRTUAL_ENV=$(pipenv --venv 2>/dev/null ; true)\n" +
 	"\n" +
-	"  if [[ -z $venv || ! -d $venv ]]; then\n" +
+	"  if [[ -z $VIRTUAL_ENV || ! -d $VIRTUAL_ENV ]]; then\n" +
 	"    pipenv install --dev\n" +
+	"    VIRTUAL_ENV=$(pipenv --venv)\n" +
 	"  fi\n" +
-	"\n" +
-	"  VIRTUAL_ENV=$(pipenv --venv)\n" +
 	"\n" +
 	"  PATH_add \"$VIRTUAL_ENV/bin\"\n" +
 	"  export PIPENV_ACTIVE=1\n" +
 	"  export VIRTUAL_ENV\n" +
+	"}\n" +
+	"\n" +
+	"# Usage: layout pyenv <python version number> [<python version number> ...]\n" +
+	"#\n" +
+	"# Example:\n" +
+	"#\n" +
+	"#    layout pyenv 3.6.7\n" +
+	"#\n" +
+	"# Uses pyenv and layout_python to create and load a virtual environment under\n" +
+	"# \"$direnv_layout_dir/python-$python_version\".\n" +
+	"#\n" +
+	"layout_pyenv() {\n" +
+	"  unset PYENV_VERSION\n" +
+	"  # layout_python prepends each python version to the PATH, so we add each\n" +
+	"  # version in reverse order so that the first listed version ends up\n" +
+	"  # first in the path\n" +
+	"  local i\n" +
+	"  for ((i = $#; i > 0; i--)); do\n" +
+	"    local python_version=${!i}\n" +
+	"    local pyenv_python\n" +
+	"    pyenv_python=$(pyenv root)/versions/${python_version}/bin/python\n" +
+	"    if [[ -x \"$pyenv_python\" ]]; then\n" +
+	"      if layout_python \"$pyenv_python\"; then\n" +
+	"        # e.g. Given \"use pyenv 3.6.9 2.7.16\", PYENV_VERSION becomes \"3.6.9:2.7.16\"\n" +
+	"        PYENV_VERSION=${python_version}${PYENV_VERSION:+:$PYENV_VERSION}\n" +
+	"      fi\n" +
+	"    else\n" +
+	"      log_error \"pyenv: version '$python_version' not installed\"\n" +
+	"      return 1\n" +
+	"    fi\n" +
+	"  done\n" +
+	"\n" +
+	"  [[ -n \"$PYENV_VERSION\" ]] && export PYENV_VERSION\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: layout ruby\n" +
@@ -550,6 +630,13 @@ const STDLIB = "#!/usr/bin/env bash\n" +
 	"\n" +
 	"  PATH_add \"$GEM_HOME/bin\"\n" +
 	"  PATH_add \"$BUNDLE_BIN\"\n" +
+	"}\n" +
+	"\n" +
+	"# Usage: layout julia\n" +
+	"#\n" +
+	"# Sets the JULIA_PROJECT environment variable to the current directory.\n" +
+	"layout_julia() {\n" +
+	"  export JULIA_PROJECT=$PWD\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: use <program_name> [<version>]\n" +
@@ -602,7 +689,7 @@ const STDLIB = "#!/usr/bin/env bash\n" +
 	"# Usage: use node\n" +
 	"# Loads NodeJS version from a `.node-version` or `.nvmrc` file.\n" +
 	"#\n" +
-	"# Usage: use node <version>\n" +
+	"# Usage: use node [<version>]\n" +
 	"# Loads specified NodeJS version.\n" +
 	"#\n" +
 	"# If you specify a partial NodeJS version (i.e. `4.2`), a fuzzy match\n" +
@@ -617,23 +704,23 @@ const STDLIB = "#!/usr/bin/env bash\n" +
 	"#   Overrides the default version prefix.\n" +
 	"\n" +
 	"use_node() {\n" +
-	"  local version=$1\n" +
+	"  local version=${1:-}\n" +
 	"  local via=\"\"\n" +
 	"  local node_version_prefix=${NODE_VERSION_PREFIX-node-v}\n" +
 	"  local node_wanted\n" +
 	"  local node_prefix\n" +
 	"\n" +
-	"  if [[ -z $NODE_VERSIONS ]] || [[ ! -d $NODE_VERSIONS ]]; then\n" +
+	"  if [[ -z ${NODE_VERSIONS:-} || ! -d $NODE_VERSIONS ]]; then\n" +
 	"    log_error \"You must specify a \\$NODE_VERSIONS environment variable and the directory specified must exist!\"\n" +
 	"    return 1\n" +
 	"  fi\n" +
 	"\n" +
-	"  if [[ -z $version ]] && [[ -f .nvmrc ]]; then\n" +
+	"  if [[ -z $version && -f .nvmrc ]]; then\n" +
 	"    version=$(<.nvmrc)\n" +
 	"    via=\".nvmrc\"\n" +
 	"  fi\n" +
 	"\n" +
-	"  if [[ -z $version ]] && [[ -f .node-version ]]; then\n" +
+	"  if [[ -z $version && -f .node-version ]]; then\n" +
 	"    version=$(<.node-version)\n" +
 	"    via=\".node-version\"\n" +
 	"  fi\n" +
@@ -687,8 +774,7 @@ const STDLIB = "#!/usr/bin/env bash\n" +
 	"use_nix() {\n" +
 	"  direnv_load nix-shell --show-trace \"$@\" --run \"$(join_args \"$direnv\" dump)\"\n" +
 	"  if [[ $# == 0 ]]; then\n" +
-	"    watch_file default.nix\n" +
-	"    watch_file shell.nix\n" +
+	"    watch_file default.nix shell.nix\n" +
 	"  fi\n" +
 	"}\n" +
 	"\n" +
@@ -706,12 +792,45 @@ const STDLIB = "#!/usr/bin/env bash\n" +
 	"  eval \"$(guix environment \"$@\" --search-paths)\"\n" +
 	"}\n" +
 	"\n" +
-	"## Load the global ~/.direnvrc if present\n" +
-	"if [[ -f ${XDG_CONFIG_HOME:-$HOME/.config}/direnv/direnvrc ]]; then\n" +
-	"  # shellcheck disable=SC1090\n" +
-	"  source \"${XDG_CONFIG_HOME:-$HOME/.config}/direnv/direnvrc\" >&2\n" +
-	"elif [[ -f $HOME/.direnvrc ]]; then\n" +
-	"  # shellcheck disable=SC1090\n" +
-	"  source \"$HOME/.direnvrc\" >&2\n" +
-	"fi\n" +
+	"# Usage: direnv_version <version_at_least>\n" +
+	"#\n" +
+	"# Checks that the direnv version is at least old as <version_at_least>.\n" +
+	"direnv_version() {\n" +
+	"  \"$direnv\" version \"$@\"\n" +
+	"}\n" +
+	"\n" +
+	"# Usage: __main__ <cmd> [...<args>]\n" +
+	"#\n" +
+	"# Used by rc.go\n" +
+	"__main__() {\n" +
+	"  # reserve stdout for dumping\n" +
+	"  exec 3>&1\n" +
+	"  exec 1>&2\n" +
+	"\n" +
+	"  __dump_at_exit() {\n" +
+	"    local ret=$?\n" +
+	"    \"$direnv\" dump json 3\n" +
+	"    trap - EXIT\n" +
+	"    exit \"$ret\"\n" +
+	"  }\n" +
+	"  trap __dump_at_exit EXIT\n" +
+	"\n" +
+	"  # load direnv libraries\n" +
+	"  for lib in \"$direnv_config_dir/lib/\"*.sh; do\n" +
+	"    # shellcheck disable=SC1090\n" +
+	"    source \"$lib\"\n" +
+	"  done\n" +
+	"\n" +
+	"  # load the global ~/.direnvrc if present\n" +
+	"  if [[ -f $direnv_config_dir/direnvrc ]]; then\n" +
+	"    # shellcheck disable=SC1090\n" +
+	"    source \"$direnv_config_dir/direnvrc\" >&2\n" +
+	"  elif [[ -f $HOME/.direnvrc ]]; then\n" +
+	"    # shellcheck disable=SC1090\n" +
+	"    source \"$HOME/.direnvrc\" >&2\n" +
+	"  fi\n" +
+	"\n" +
+	"  # and finally load the .envrc\n" +
+	"  \"$@\"\n" +
+	"}\n" +
 	""

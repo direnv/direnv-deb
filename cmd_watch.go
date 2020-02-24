@@ -1,25 +1,27 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
+// CmdWatch is `direnv watch SHELL [PATH...]`
 var CmdWatch = &Cmd{
 	Name:    "watch",
 	Desc:    "Adds a path to the list that direnv watches for changes",
-	Args:    []string{"[SHELL]", "PATH"},
-	Private: false,
-	Fn:      watchCommand,
+	Args:    []string{"SHELL", "PATH..."},
+	Private: true,
+	Action:  actionSimple(cmdWatchAction),
 }
 
-func watchCommand(env Env, args []string) (err error) {
-	var path, shellName string
+func cmdWatchAction(env Env, args []string) (err error) {
+	var shellName string
 
-	args = args[1:]
-	if len(args) < 1 {
-		return fmt.Errorf("A path is required to add to the list of watches")
+	if len(args) < 2 {
+		return fmt.Errorf("a path is required to add to the list of watches")
 	}
 	if len(args) >= 2 {
-		shellName = args[0]
-		args = args[1:]
+		shellName = args[1]
 	} else {
 		shellName = "bash"
 	}
@@ -27,23 +29,29 @@ func watchCommand(env Env, args []string) (err error) {
 	shell := DetectShell(shellName)
 
 	if shell == nil {
-		return fmt.Errorf("Unknown target shell '%s'", shellName)
+		return fmt.Errorf("unknown target shell '%s'", shellName)
 	}
-
-	path = args[0]
 
 	watches := NewFileTimes()
 	watchString, ok := env[DIRENV_WATCHES]
 	if ok {
-		watches.Unmarshal(watchString)
+		err = watches.Unmarshal(watchString)
+		if err != nil {
+			return
+		}
 	}
 
-	watches.Update(path)
+	for _, arg := range args[2:] {
+		err = watches.Update(arg)
+		if err != nil {
+			return
+		}
+	}
 
 	e := make(ShellExport)
 	e.Add(DIRENV_WATCHES, watches.Marshal())
 
-	fmt.Printf(shell.Export(e))
+	os.Stdout.WriteString(shell.Export(e))
 
 	return
 }
