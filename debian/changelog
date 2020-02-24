@@ -1,3 +1,16 @@
+direnv (2.21.2-1) unstable; urgency=medium
+
+  * New upstream version 2.21.2
+  * Drop setting GOPATH during package build
+  * Enable verbose output during build
+  * Fix shellcheck warnings
+  * Disable golangci-lint for package builds
+  * Fix elvish test failures (Closes: #952168)
+  * Update Standards-Version to 4.5.0
+  * Set HOME during testing
+
+ -- Punit Agrawal <punit@debian.org>  Mon, 24 Feb 2020 15:38:17 +0900
+
 direnv (2.20.1-2) unstable; urgency=medium
 
   * Explicitly specify GOCACHE to build with Go 1.12
