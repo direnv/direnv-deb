@@ -4,17 +4,18 @@ import (
 	"errors"
 )
 
+// CmdCurrent is `direnv current`
 var CmdCurrent = &Cmd{
 	Name:    "current",
 	Desc:    "Reports whether direnv's view of a file is current (or stale)",
 	Args:    []string{"PATH"},
 	Private: true,
-	Fn:      currentCommandFn,
+	Action:  actionSimple(cmdCurrentAction),
 }
 
-func currentCommandFn(env Env, args []string) (err error) {
+func cmdCurrentAction(env Env, args []string) (err error) {
 	if len(args) < 2 {
-		err = errors.New("Missing PATH argument")
+		err = errors.New("missing PATH argument")
 		return
 	}
 
@@ -22,7 +23,10 @@ func currentCommandFn(env Env, args []string) (err error) {
 	watches := NewFileTimes()
 	watchString, ok := env[DIRENV_WATCHES]
 	if ok {
-		watches.Unmarshal(watchString)
+		err = watches.Unmarshal(watchString)
+		if err != nil {
+			return
+		}
 	}
 
 	err = watches.CheckOne(path)

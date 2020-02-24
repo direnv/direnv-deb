@@ -1,5 +1,5 @@
-DIRENV.TOML 1 "FEBRUARY 2018" direnv "User Manuals"
-==================================================
+DIRENV.TOML 1 "2019" direnv "User Manuals"
+==========================================
 
 NAME
 ----
@@ -9,7 +9,7 @@ direnv.toml - the direnv configuration file
 DESCRIPTION
 -----------
 
-A configuration file in [TOML](https://github.com/toml-lang/toml) format to specify a variety of configuration options for direnv. Resides at CONFIGURATION_DIR/config.toml. For many users, this will be located at $HOME/.config/direnv/config.toml.
+A configuration file in [TOML](https://github.com/toml-lang/toml) format to specify a variety of configuration options for direnv. Resides at CONFIGURATION_DIR/direnv.toml. For many users, this will be located at $HOME/.config/direnv/direnv.toml.
 
 FORMAT
 ------
@@ -30,6 +30,15 @@ key = "value"
 
 The following sections are supported:
 
+## `warn_timeout`
+
+Specify how long to wait before warning the user that the command is taking
+too long to execute. Defaults to "5s".
+
+A duration string is a possibly signed sequence of decimal numbers, each with
+optional fraction and a unit suffix, such as "300ms", "-1.5h" or "2h45m".
+Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h". 
+
 ## `whitelist`
 
 Specifying whitelist directives marks specific directory hierarchies or specific directories as "trusted" -- direnv will evaluate any matching .envrc files regardless of whether they have been specifically allowed. **This feature should be used with great care**, as anyone with the ability to write files to that directory (including collaborators on VCS repositories) will be able to execute arbitrary code on your computer.
@@ -37,6 +46,7 @@ Specifying whitelist directives marks specific directory hierarchies or specific
 There are two types of whitelist directives supported:
 
 ### `prefix`
+
 Accepts an array of strings. If any of the strings in this list are a prefix of an .envrc file's absolute path, that file will be implicitly allowed, regardless of contents or past usage of `direnv allow` or `direnv deny`.
 
 Example:
@@ -89,9 +99,9 @@ If set to true, stdin is disabled (redirected to /dev/null) during the `.envrc` 
 COPYRIGHT
 ---------
 
-Copyright (C) 2018 zimbatm <http://zimbatm.com> and contributors under the MIT licence.
+MIT licence - Copyright (C) 2019 @zimbatm and contributors
 
 SEE ALSO
 --------
 
-direnv(1)
+direnv(1), direnv-stdlib(1)

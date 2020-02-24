@@ -9,6 +9,8 @@ set -e
 
 cd "$(dirname "$0")"
 TEST_DIR=$PWD
+export XDG_CONFIG_HOME=${TEST_DIR}/config
+export XDG_DATA_HOME=${TEST_DIR}/data
 PATH=$(dirname "$TEST_DIR"):$PATH
 export PATH
 
@@ -20,9 +22,12 @@ unset DIRENV_MTIME
 unset DIRENV_WATCHES
 unset DIRENV_DIFF
 
-export XDG_CONFIG_HOME=${TEST_DIR}/config
 mkdir -p "${XDG_CONFIG_HOME}/direnv"
 touch "${XDG_CONFIG_HOME}/direnv/direnvrc"
+
+has() {
+  type -P "$1" &>/dev/null
+}
 
 direnv_eval() {
   eval "$(direnv export "$TARGET_SHELL")"
@@ -100,10 +105,12 @@ test_start inherit
   test_eq "$HELLO" "goodbye"
 test_stop
 
-test_start "ruby-layout"
-  direnv_eval
-  test_neq "$GEM_HOME" ""
-test_stop
+if has ruby; then
+  test_start "ruby-layout"
+    direnv_eval
+    test_neq "$GEM_HOME" ""
+  test_stop
+fi
 
 # Make sure directories with spaces are fine
 test_start "space dir"

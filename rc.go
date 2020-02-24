@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"time"
 )
 
+// RC represents the .envrc file
 type RC struct {
 	path      string
 	allowPath string
@@ -19,6 +21,7 @@ type RC struct {
 	config    *Config
 }
 
+// FindRC looks the RC file from the wd, up to the root
 func FindRC(wd string, config *Config) *RC {
 	rcPath := findUp(wd, ".envrc")
 	if rcPath == "" {
@@ -28,6 +31,7 @@ func FindRC(wd string, config *Config) *RC {
 	return RCFromPath(rcPath, config)
 }
 
+// RCFromPath inits the RC from a given path
 func RCFromPath(path string, config *Config) *RC {
 	hash, err := fileHash(path)
 	if err != nil {
@@ -37,58 +41,73 @@ func RCFromPath(path string, config *Config) *RC {
 	allowPath := filepath.Join(config.AllowDir(), hash)
 
 	times := NewFileTimes()
-	times.Update(path)
-	times.Update(allowPath)
+
+	err = times.Update(path)
+	if err != nil {
+		return nil
+	}
+
+	err = times.Update(allowPath)
+	if err != nil {
+		return nil
+	}
 
 	return &RC{path, allowPath, times, config}
 }
 
-func RCFromEnv(path, marshalled_times string, config *Config) *RC {
+// RCFromEnv inits the RC from the environment
+func RCFromEnv(path, marshalledTimes string, config *Config) *RC {
 	times := NewFileTimes()
-	times.Unmarshal(marshalled_times)
+	err := times.Unmarshal(marshalledTimes)
+	if err != nil {
+		return nil
+	}
 	return &RC{path, "", times, config}
 }
 
-func (self *RC) Allow() (err error) {
-	if self.allowPath == "" {
-		return fmt.Errorf("Cannot allow empty path")
+// Allow grants the RC as allowed to load
+func (rc *RC) Allow() (err error) {
+	if rc.allowPath == "" {
+		return fmt.Errorf("cannot allow empty path")
 	}
-	if err = os.MkdirAll(filepath.Dir(self.allowPath), 0755); err != nil {
+	if err = os.MkdirAll(filepath.Dir(rc.allowPath), 0755); err != nil {
 		return
 	}
-	if err = allow(self.path, self.allowPath); err != nil {
+	if err = allow(rc.path, rc.allowPath); err != nil {
 		return
 	}
-	self.times.Update(self.allowPath)
+	err = rc.times.Update(rc.allowPath)
 	return
 }
 
-func (self *RC) Deny() error {
-	return os.Remove(self.allowPath)
+// Deny revokes the permission of the RC file to load
+func (rc *RC) Deny() error {
+	return os.Remove(rc.allowPath)
 }
 
-func (self *RC) Allowed() bool {
+// Allowed checks if the RC file has been granted loading
+func (rc *RC) Allowed() bool {
 	// happy path is if this envrc has been explicitly allowed, O(1)ish common case
-	_, err := os.Stat(self.allowPath)
+	_, err := os.Stat(rc.allowPath)
 
 	if err == nil {
 		return true
 	}
 
 	// when whitelisting we want to be (path) absolutely sure we've not been duped with a symlink
-	path, err := filepath.Abs(self.path)
+	path, err := filepath.Abs(rc.path)
 	// seems unlikely that we'd hit this, but have to handle it
 	if err != nil {
 		return false
 	}
 
 	// exact whitelists are O(1)ish to check, so look there first
-	if self.config.WhitelistExact[path] {
+	if rc.config.WhitelistExact[path] {
 		return true
 	}
 
 	// finally we check if any of our whitelist prefixes match
-	for _, prefix := range self.config.WhitelistPrefix {
+	for _, prefix := range rc.config.WhitelistPrefix {
 		if strings.HasPrefix(path, prefix) {
 			return true
 		}
@@ -97,44 +116,45 @@ func (self *RC) Allowed() bool {
 	return false
 }
 
-// Makes the path relative to the current directory. Except when both paths
-// are completely different.
-// Eg:  /home/foo and /home/bar => ../foo
-// But: /home/foo and /tmp/bar  => /home/foo
-func (self *RC) RelTo(wd string) string {
-	if rootDir(wd) != rootDir(self.path) {
-		return self.path
-	}
-	x, err := filepath.Rel(wd, self.path)
-	if err != nil {
-		panic(err)
-	}
-	return x
+// Path returns the path to the RC file
+func (rc *RC) Path() string {
+	return rc.path
 }
 
-func (self *RC) Touch() error {
-	return touch(self.path)
+// Touch updates the mtime of the RC file. This is mainly used to trigger a
+// reload in direnv.
+func (rc *RC) Touch() error {
+	return touch(rc.path)
 }
 
-const NOT_ALLOWED = "%s is blocked. Run `direnv allow` to approve its content."
+const notAllowed = "%s is blocked. Run `direnv allow` to approve its content"
 
-func (self *RC) Load(config *Config, env Env) (newEnv Env, err error) {
+// Load evaluates the RC file and returns the new Env or error.
+//
+// This functions is key to the implementation of direnv.
+func (rc *RC) Load(ctx context.Context, config *Config, env Env) (newEnv Env, err error) {
 	wd := config.WorkDir
 	direnv := config.SelfPath
 	newEnv = env.Copy()
-	newEnv[DIRENV_WATCHES] = self.times.Marshal()
+	newEnv[DIRENV_WATCHES] = rc.times.Marshal()
 	defer func() {
-		self.RecordState(env, newEnv)
+		rc.RecordState(env, newEnv)
 	}()
 
-	if !self.Allowed() {
-		err = fmt.Errorf(NOT_ALLOWED, self.RelTo(wd))
+	if !rc.Allowed() {
+		err = fmt.Errorf(notAllowed, rc.Path())
 		return
 	}
 
-	argtmpl := `eval "$("%s" stdlib)" >&2 && source_env "%s" >&2 && "%s" dump`
-	arg := fmt.Sprintf(argtmpl, direnv, self.RelTo(wd), direnv)
-	cmd := exec.Command(config.BashPath, "--noprofile", "--norc", "-c", arg)
+	arg := fmt.Sprintf(
+		`eval "$("%s" stdlib)" && __main__ source_env "%s"`,
+		direnv,
+		rc.Path(),
+	)
+	cmd := exec.CommandContext(ctx, config.BashPath, "--noprofile", "--norc", "-c", arg)
+	cmd.Dir = wd
+	cmd.Env = newEnv.ToGoEnv()
+	cmd.Stderr = os.Stderr
 
 	if config.DisableStdin {
 		cmd.Stdin, err = os.Open(os.DevNull)
@@ -145,26 +165,29 @@ func (self *RC) Load(config *Config, env Env) (newEnv Env, err error) {
 		cmd.Stdin = os.Stdin
 	}
 
-	cmd.Stderr = os.Stderr
-	cmd.Env = newEnv.ToGoEnv()
-	cmd.Dir = wd
-
 	out, err := cmd.Output()
 	if err != nil {
 		return
 	}
 
-	newEnv2, err := LoadEnv(string(out))
-	if err != nil {
-		return
+	if len(out) > 0 {
+		var newEnv2 Env
+		newEnv2, err = LoadEnvJSON(out)
+		if err != nil {
+			return
+		}
+		if newEnv2["PS1"] != "" {
+			logError("PS1 cannot be exported. For more information see https://github.com/direnv/direnv/wiki/PS1")
+		}
+		newEnv = newEnv2
 	}
-	newEnv = newEnv2
 
 	return
 }
 
-func (self *RC) RecordState(env Env, newEnv Env) {
-	newEnv[DIRENV_DIR] = "-" + filepath.Dir(self.path)
+// RecordState just applies the new environment
+func (rc *RC) RecordState(env Env, newEnv Env) {
+	newEnv[DIRENV_DIR] = "-" + filepath.Dir(rc.path)
 	newEnv[DIRENV_DIFF] = env.Diff(newEnv).Serialize()
 }
 
@@ -223,7 +246,10 @@ func fileHash(path string) (hash string, err error) {
 	}
 
 	hasher := sha256.New()
-	hasher.Write([]byte(path + "\n"))
+	_, err = hasher.Write([]byte(path + "\n"))
+	if err != nil {
+		return
+	}
 	if _, err = io.Copy(hasher, fd); err != nil {
 		return
 	}

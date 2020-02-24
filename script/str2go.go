@@ -10,30 +10,30 @@ import (
 )
 
 const (
-	BackSlash   = '\\'
-	NewLine     = '\n'
-	DoubleQuote = '"'
+	backSlash   = '\\'
+	newLine     = '\n'
+	doubleQuote = '"'
 )
 
 func printRune(w *bufio.Writer, r rune) {
 	switch r {
-	case BackSlash:
-		w.WriteRune(BackSlash)
-		w.WriteRune(BackSlash)
-	case NewLine:
-		w.WriteString("\\n\" +\n\t\"")
-	case DoubleQuote:
-		w.WriteRune(BackSlash)
-		w.WriteRune(DoubleQuote)
+	case backSlash:
+		_, _ = w.WriteRune(backSlash)
+		_, _ = w.WriteRune(backSlash)
+	case newLine:
+		_, _ = w.WriteString("\\n\" +\n\t\"")
+	case doubleQuote:
+		_, _ = w.WriteRune(backSlash)
+		_, _ = w.WriteRune(doubleQuote)
 	default:
-		if !IsASCII(r) {
+		if !isASCII(r) {
 			panic("only ASCII is supported")
 		}
-		w.WriteRune(r)
+		_, _ = w.WriteRune(r)
 	}
 }
 
-func IsASCII(r rune) bool {
+func isASCII(r rune) bool {
 	return r < unicode.MaxASCII
 }
 
@@ -45,7 +45,7 @@ func main() {
 	out := bufio.NewWriter(os.Stdout)
 	defer out.Flush()
 
-	fmt.Fprintf(out, "package %s\n\nconst %s = \"", packageName, constantName)
+	fmt.Fprintf(out, "package %s\n\n// %s ...\nconst %s = \"", packageName, constantName, constantName)
 
 	for {
 		r, _, err := in.ReadRune()

@@ -31,12 +31,13 @@ ln -s 2.0.0-p247 2.0.0
 ln -s 2.0.0-p247 2.0
 ```
 
-The end goal is that each project will have an ".envrc" file that contains
+The end goal is that each project will have an `.envrc` file that contains
 a descriptive syntax like `use ruby 1.9.3` to selects the right ruby version
 for the project.
 
 For that regard we are going to use a couple of commands available in the
-[direnv stdlib](/stdlib.html) and expand it a bit in the ~/.direnvrc file.
+[direnv stdlib](/man/direnv-stdlib.1.md) and expand it a bit in the ~/.direnvrc
+file.
 
 Add this to the ~/.direnvrc file (you have to create it if it doesn't exist):
 
