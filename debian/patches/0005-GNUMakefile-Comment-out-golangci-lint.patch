@@ -1,0 +1,26 @@
+From: Punit Agrawal <punit@debian.org>
+Date: Mon, 24 Feb 2020 13:26:59 +0900
+Subject: GNUMakefile: Comment out golangci-lint
+
+With the upgrade to 2.21.2, direnv has a new dependency
+(golangci-lint) which is not currently available in debian.
+
+Skip the linter as it should already be run on any released version of
+direnv and is not required for testing the generated binary.
+---
+ GNUmakefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/GNUmakefile b/GNUmakefile
+index 1d2b576..fa96fa3 100644
+--- a/GNUmakefile
++++ b/GNUmakefile
+@@ -130,7 +130,7 @@ test-go:
+ 	$(GO) test -v ./...
+ 
+ test-go-lint:
+-	golangci-lint run
++#	golangci-lint run
+ 
+ test-bash:
+ 	bash ./test/direnv-test.bash

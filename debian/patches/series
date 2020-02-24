@@ -2,3 +2,4 @@
 0002-Escape-.-at-the-beginning-of-line-to-remove-manpage-.patch
 0002-Re-write-grep-pattern-to-avoid-shell-escape.patch
 0004-stdlib.sh-Fix-shellcheck-warning.patch
+0005-GNUMakefile-Comment-out-golangci-lint.patch
