@@ -1,0 +1,36 @@
+From: Punit Agrawal <punit@debian.org>
+Date: Mon, 24 Feb 2020 13:47:49 +0900
+Subject: test: elvish: Fix evaluation function
+
+The direnv hook for elvish was changed in commit ab4d188d ("shell: fix
+elvish hook"). It seems that there is a change in shell behaviour that
+is being handled by the commit. (It's hard to understand the reason
+for the change as there are no details in the commit log).
+
+Recently, build failures attributable to failing elvish tests were
+reported in debian (See Bug #952168). On further investigation, it
+seems a similar change to the elvish test script is needed.
+
+Closes: #952168
+---
+ test/direnv-test.elv | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/direnv-test.elv b/test/direnv-test.elv
+index 9a21aac..705c0ef 100755
+--- a/test/direnv-test.elv
++++ b/test/direnv-test.elv
+@@ -22,10 +22,10 @@ fn direnv-eval {
+ 	try {
+ 		m = (direnv export elvish | from-json)
+ 		keys $m | each [k]{
+-			if (==s $k 'null') {
+-				unset-env $k
+-			} else {
++			if $m[$k] {
+ 				set-env $k $m[$k]
++			} else {
++				unset-env $k
+ 			}
+ 		}
+ 	} except e {

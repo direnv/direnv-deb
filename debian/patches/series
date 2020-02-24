@@ -3,3 +3,4 @@
 0002-Re-write-grep-pattern-to-avoid-shell-escape.patch
 0004-stdlib.sh-Fix-shellcheck-warning.patch
 0005-GNUMakefile-Comment-out-golangci-lint.patch
+0006-test-elvish-Fix-evaluation-function.patch
