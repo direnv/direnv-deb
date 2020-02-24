@@ -1,0 +1,42 @@
+From: Punit Agrawal <punit@debian.org>
+Date: Mon, 24 Feb 2020 13:19:04 +0900
+Subject: stdlib.sh: Fix shellcheck warning
+
+Since the upgrade to upstream version 2.21.2, shellcheck is
+complaining with the following warning -
+
+    In stdlib.sh line 217:
+      pushd "$(pwd 2>/dev/null)" >/dev/null
+      ^-- SC2164: Use 'pushd ... || exit' or 'pushd ... || return' in case pushd fails.
+
+Fix this by updating pushd / popd with the suggested changes.
+---
+ stdlib.sh | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/stdlib.sh b/stdlib.sh
+index 6ed33c3..34f05da 100755
+--- a/stdlib.sh
++++ b/stdlib.sh
+@@ -214,8 +214,8 @@ source_env() {
+   rcfile=$(user_rel_path "$rcpath")
+   watch_file "$rcpath"
+ 
+-  pushd "$(pwd 2>/dev/null)" >/dev/null
+-  pushd "$(dirname "$rcpath")" >/dev/null
++  pushd "$(pwd 2>/dev/null)" >/dev/null || return
++  pushd "$(dirname "$rcpath")" >/dev/null || return
+   if [[ -f ./$(basename "$rcpath") ]]; then
+     log_status "loading $rcfile"
+     # shellcheck disable=SC1090
+@@ -223,8 +223,8 @@ source_env() {
+   else
+     log_status "referenced $rcfile does not exist"
+   fi
+-  popd >/dev/null
+-  popd >/dev/null
++  popd >/dev/null || return
++  popd >/dev/null || return
+ }
+ 
+ # Usage: watch_file <filename> [<filename> ...]
