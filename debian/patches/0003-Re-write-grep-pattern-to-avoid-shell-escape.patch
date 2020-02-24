@@ -7,10 +7,10 @@ Subject: Re-write grep pattern to avoid shell escape
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/stdlib.sh b/stdlib.sh
-index 4ab1b48..4b0cbf7 100755
+index 0eea7cb..6ed33c3 100755
 --- a/stdlib.sh
 +++ b/stdlib.sh
-@@ -484,7 +484,7 @@ layout_anaconda() {
+@@ -532,7 +532,7 @@ layout_anaconda() {
      conda=$(command -v conda)
    fi
    PATH_add "$(dirname "$conda")"
