@@ -13,6 +13,7 @@ const StdLib = "#!/usr/bin/env bash\n" +
 	"# SC2059: Don't use variables in the printf format string. Use printf \"..%s..\" \"$foo\".\n" +
 	"shopt -s gnu_errfmt\n" +
 	"shopt -s nullglob\n" +
+	"shopt -s extglob\n" +
 	"\n" +
 	"\n" +
 	"# NOTE: don't touch the RHS, it gets replaced at runtime\n" +
@@ -22,7 +23,7 @@ const StdLib = "#!/usr/bin/env bash\n" +
 	"DIRENV_LOG_FORMAT=\"${DIRENV_LOG_FORMAT-direnv: %s}\"\n" +
 	"\n" +
 	"# Where direnv configuration should be stored\n" +
-	"direnv_config_dir=${XDG_CONFIG_DIR:-$HOME/.config}/direnv\n" +
+	"direnv_config_dir=${XDG_CONFIG_HOME:-$HOME/.config}/direnv\n" +
 	"\n" +
 	"# This variable can be used by programs to detect when they are running inside\n" +
 	"# of a .envrc evaluation context. It is ignored by the direnv diffing\n" +
@@ -118,8 +119,23 @@ const StdLib = "#!/usr/bin/env bash\n" +
 	"#    # output: /usr/local/foo\n" +
 	"#\n" +
 	"expand_path() {\n" +
-	"  \"$direnv\" expand_path \"$@\"\n" +
+	"  local REPLY; __rp_absolute ${2+\"$2\"} ${1+\"$1\"}; echo \"$REPLY\"\n" +
 	"}\n" +
+	"\n" +
+	"# --- vendored from https://github.com/bashup/realpaths\n" +
+	"__rp_dirname() { REPLY=.; ! [[ $1 =~ /+[^/]+/*$ ]] || REPLY=\"${1%${BASH_REMATCH[0]}}\"; REPLY=${REPLY:-/}; }\n" +
+	"__rp_absolute() {\n" +
+	"	REPLY=$PWD; local eg=extglob; ! shopt -q $eg || eg=; ${eg:+shopt -s $eg}\n" +
+	"	while (($#)); do case $1 in\n" +
+	"		//|//[^/]*) REPLY=//; set -- \"${1:2}\" \"${@:2}\" ;;\n" +
+	"		/*) REPLY=/; set -- \"${1##+(/)}\" \"${@:2}\" ;;\n" +
+	"		*/*) set -- \"${1%%/*}\" \"${1##${1%%/*}+(/)}\" \"${@:2}\" ;;\n" +
+	"		''|.) shift ;;\n" +
+	"		..) __rp_dirname \"$REPLY\"; shift ;;\n" +
+	"		*) REPLY=\"${REPLY%/}/$1\"; shift ;;\n" +
+	"	esac; done; ${eg:+shopt -u $eg}\n" +
+	"}\n" +
+	"# ---\n" +
 	"\n" +
 	"# Usage: dotenv [<dotenv>]\n" +
 	"#\n" +
@@ -217,8 +233,8 @@ const StdLib = "#!/usr/bin/env bash\n" +
 	"  rcfile=$(user_rel_path \"$rcpath\")\n" +
 	"  watch_file \"$rcpath\"\n" +
 	"\n" +
-	"  pushd \"$(pwd 2>/dev/null)\" >/dev/null\n" +
-	"  pushd \"$(dirname \"$rcpath\")\" >/dev/null\n" +
+	"  pushd \"$(pwd 2>/dev/null)\" >/dev/null || return 1\n" +
+	"  pushd \"$(dirname \"$rcpath\")\" >/dev/null || return 1\n" +
 	"  if [[ -f ./$(basename \"$rcpath\") ]]; then\n" +
 	"    log_status \"loading $rcfile\"\n" +
 	"    # shellcheck disable=SC1090\n" +
@@ -226,8 +242,8 @@ const StdLib = "#!/usr/bin/env bash\n" +
 	"  else\n" +
 	"    log_status \"referenced $rcfile does not exist\"\n" +
 	"  fi\n" +
-	"  popd >/dev/null\n" +
-	"  popd >/dev/null\n" +
+	"  popd >/dev/null || return 1\n" +
+	"  popd >/dev/null || return 1\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: watch_file <filename> [<filename> ...]\n" +
@@ -261,49 +277,52 @@ const StdLib = "#!/usr/bin/env bash\n" +
 	"# process - cause that process to run \"direnv dump\" and then wrap\n" +
 	"# the results with direnv_load.\n" +
 	"#\n" +
+	"# shellcheck disable=SC1090\n" +
 	"direnv_load() {\n" +
 	"  # Backup watches in case of `nix-shell --pure`\n" +
 	"  local prev_watches=$DIRENV_WATCHES\n" +
-	"  local prev_dump_file_path=${DIRENV_DUMP_FILE_PATH:-}\n" +
+	"  local temp_dir output_file script_file exit_code\n" +
 	"\n" +
-	"  # Create pipe\n" +
-	"  DIRENV_DUMP_FILE_PATH=$(mktemp -u)\n" +
-	"  export DIRENV_DUMP_FILE_PATH\n" +
-	"  mkfifo \"$DIRENV_DUMP_FILE_PATH\"\n" +
+	"  # Prepare a temporary place for dumps and such.\n" +
+	"  temp_dir=$(mktemp -dt direnv.XXXXXX) || {\n" +
+	"    log_error \"Could not create temporary directory.\"\n" +
+	"    return 1\n" +
+	"  }\n" +
+	"  output_file=\"$temp_dir/output\"\n" +
+	"  script_file=\"$temp_dir/script\"\n" +
 	"\n" +
-	"  # Run program in the background\n" +
-	"  (\"$@\")&\n" +
+	"  # Chain the following commands explicitly so that we can capture the exit code\n" +
+	"  # of the whole chain. Crucially this ensures that we don't return early (via\n" +
+	"  # `set -e`, for example) and hence always remove the temporary directory.\n" +
+	"  touch \"$output_file\" &&\n" +
+	"    DIRENV_DUMP_FILE_PATH=\"$output_file\" \"$@\" &&\n" +
+	"    { test -s \"$output_file\" || {\n" +
+	"        log_error \"Environment not dumped; did you invoke 'direnv dump'?\"\n" +
+	"        false\n" +
+	"      }\n" +
+	"    } &&\n" +
+	"    \"$direnv\" apply_dump \"$output_file\" > \"$script_file\" &&\n" +
+	"    source \"$script_file\" ||\n" +
+	"      exit_code=$?\n" +
 	"\n" +
-	"  # Apply the output of the dump\n" +
-	"  local exports\n" +
-	"  exports=$(\"$direnv\" apply_dump \"$DIRENV_DUMP_FILE_PATH\")\n" +
-	"  local es=$?\n" +
-	"\n" +
-	"  # Regroup\n" +
-	"  rm \"$DIRENV_DUMP_FILE_PATH\"\n" +
-	"  wait # wait on the child process to exit\n" +
-	"  local es2=$?\n" +
-	"\n" +
-	"  if [[ $es -ne 0 ]]; then\n" +
-	"    return $es\n" +
-	"  fi\n" +
-	"\n" +
-	"  if [[ $es2 -ne 0 ]]; then\n" +
-	"    return $es2\n" +
-	"  fi\n" +
-	"\n" +
-	"  eval \"$exports\"\n" +
+	"  # Scrub temporary directory\n" +
+	"  rm -rf \"$temp_dir\"\n" +
 	"\n" +
 	"  # Restore watches if the dump wiped them\n" +
-	"  if [[ -z \"$DIRENV_WATCHES\" ]]; then\n" +
+	"  if [[ -z \"${DIRENV_WATCHES:-}\" ]]; then\n" +
 	"    export DIRENV_WATCHES=$prev_watches\n" +
 	"  fi\n" +
-	"  # Allow nesting\n" +
-	"  if [[ -n \"$prev_dump_file_path\" ]]; then\n" +
-	"    export DIRENV_DUMP_FILE_PATH=$prev_dump_file_path\n" +
-	"  else\n" +
-	"    unset DIRENV_DUMP_FILE_PATH\n" +
-	"  fi\n" +
+	"\n" +
+	"  # Exit accordingly\n" +
+	"  return ${exit_code:-0}\n" +
+	"}\n" +
+	"\n" +
+	"# Usage: direnv_apply_dump <file>\n" +
+	"#\n" +
+	"# Loads the output of `direnv dump` that was stored in a file.\n" +
+	"direnv_apply_dump() {\n" +
+	"  local path=$1\n" +
+	"  eval \"$(\"$direnv\" apply_dump \"$path\")\"\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: PATH_add <path> [<path> ...]\n" +
@@ -369,6 +388,63 @@ const StdLib = "#!/usr/bin/env bash\n" +
 	"  export \"MANPATH=$dir:$old_paths\"\n" +
 	"}\n" +
 	"\n" +
+	"# Usage: PATH_rm <pattern> [<pattern> ...]\n" +
+	"# Removes directories that match any of the given shell patterns from\n" +
+	"# the PATH environment variable. Order of the remaining directories is\n" +
+	"# preserved in the resulting PATH.\n" +
+	"#\n" +
+	"# Bash pattern syntax:\n" +
+	"#   https://www.gnu.org/software/bash/manual/html_node/Pattern-Matching.html\n" +
+	"#\n" +
+	"# Example:\n" +
+	"#\n" +
+	"#   echo $PATH\n" +
+	"#   # output: /dontremove/me:/remove/me:/usr/local/bin/:...\n" +
+	"#   PATH_rm '/remove/*'\n" +
+	"#   echo $PATH\n" +
+	"#   # output: /dontremove/me:/usr/local/bin/:...\n" +
+	"#\n" +
+	"PATH_rm() {\n" +
+	"  path_rm PATH \"$@\"\n" +
+	"}\n" +
+	"\n" +
+	"# Usage: path_rm <varname> <pattern> [<pattern> ...]\n" +
+	"#\n" +
+	"# Works like PATH_rm except that it's for an arbitrary <varname>.\n" +
+	"path_rm() {\n" +
+	"  local path i discard var_name=\"$1\"\n" +
+	"  # split existing paths into an array\n" +
+	"  declare -a path_array\n" +
+	"  IFS=: read -ra path_array <<<\"${!1}\"\n" +
+	"  shift\n" +
+	"\n" +
+	"  patterns=(\"$@\")\n" +
+	"  results=()\n" +
+	"\n" +
+	"  # iterate over path entries, discard entries that match any of the patterns\n" +
+	"  for path in \"${path_array[@]}\"; do\n" +
+	"    discard=false\n" +
+	"    for pattern in \"${patterns[@]}\"; do\n" +
+	"      if [[ \"$path\" == +($pattern) ]]; then\n" +
+	"        discard=true\n" +
+	"        break\n" +
+	"      fi\n" +
+	"    done\n" +
+	"    if ! $discard; then\n" +
+	"      results+=(\"$path\")\n" +
+	"    fi\n" +
+	"  done\n" +
+	"\n" +
+	"  # join the result paths\n" +
+	"  result=$(\n" +
+	"    IFS=:\n" +
+	"    echo \"${results[*]}\"\n" +
+	"  )\n" +
+	"\n" +
+	"  # and finally export back the result to the original variable\n" +
+	"  export \"$var_name=$result\"\n" +
+	"}\n" +
+	"\n" +
 	"# Usage: load_prefix <prefix_path>\n" +
 	"#\n" +
 	"# Expands some common path variables for the given <prefix_path> prefix. This is\n" +
@@ -416,10 +492,11 @@ const StdLib = "#!/usr/bin/env bash\n" +
 	"\n" +
 	"# Usage: layout go\n" +
 	"#\n" +
-	"# Sets the GOPATH environment variable to the current directory.\n" +
+	"# Adds \"$(direnv_layout_dir)/go\" to the GOPATH environment variable.\n" +
+	"# And also adds \"$PWD/bin\" to the PATH environment variable.\n" +
 	"#\n" +
 	"layout_go() {\n" +
-	"  path_add GOPATH \"$PWD\"\n" +
+	"  path_add GOPATH \"$(direnv_layout_dir)/go\"\n" +
 	"  PATH_add bin\n" +
 	"}\n" +
 	"\n" +
@@ -535,7 +612,7 @@ const StdLib = "#!/usr/bin/env bash\n" +
 	"    conda=$(command -v conda)\n" +
 	"  fi\n" +
 	"  PATH_add \"$(dirname \"$conda\")\"\n" +
-	"  env_loc=$(\"$conda\" env list | grep -- \"^$env_name\\s\")\n" +
+	"  env_loc=$(\"$conda\" env list | grep -- '^'\"$env_name\"'\\s')\n" +
 	"  if [[ ! \"$env_loc\" == $env_name*$env_name ]]; then\n" +
 	"    if [[ -e environment.yml ]]; then\n" +
 	"      log_status \"creating conda environment\"\n" +
@@ -809,7 +886,7 @@ const StdLib = "#!/usr/bin/env bash\n" +
 	"\n" +
 	"  __dump_at_exit() {\n" +
 	"    local ret=$?\n" +
-	"    \"$direnv\" dump json 3\n" +
+	"    \"$direnv\" dump json \"\" >&3\n" +
 	"    trap - EXIT\n" +
 	"    exit \"$ret\"\n" +
 	"  }\n" +

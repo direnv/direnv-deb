@@ -22,20 +22,20 @@ type RC struct {
 }
 
 // FindRC looks the RC file from the wd, up to the root
-func FindRC(wd string, config *Config) *RC {
+func FindRC(wd string, config *Config) (*RC, error) {
 	rcPath := findUp(wd, ".envrc")
 	if rcPath == "" {
-		return nil
+		return nil, nil
 	}
 
 	return RCFromPath(rcPath, config)
 }
 
 // RCFromPath inits the RC from a given path
-func RCFromPath(path string, config *Config) *RC {
+func RCFromPath(path string, config *Config) (*RC, error) {
 	hash, err := fileHash(path)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	allowPath := filepath.Join(config.AllowDir(), hash)
@@ -44,15 +44,15 @@ func RCFromPath(path string, config *Config) *RC {
 
 	err = times.Update(path)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	err = times.Update(allowPath)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return &RC{path, allowPath, times, config}
+	return &RC{path, allowPath, times, config}, nil
 }
 
 // RCFromEnv inits the RC from the environment
@@ -146,8 +146,14 @@ func (rc *RC) Load(ctx context.Context, config *Config, env Env) (newEnv Env, er
 		return
 	}
 
+	prelude := ""
+	if config.StrictEnv {
+		prelude = "set -euo pipefail && "
+	}
+
 	arg := fmt.Sprintf(
-		`eval "$("%s" stdlib)" && __main__ source_env "%s"`,
+		`%seval "$("%s" stdlib)" && __main__ source_env "%s"`,
+		prelude,
 		direnv,
 		rc.Path(),
 	)

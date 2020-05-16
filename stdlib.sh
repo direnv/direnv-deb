@@ -10,6 +10,7 @@
 # SC2059: Don't use variables in the printf format string. Use printf "..%s.." "$foo".
 shopt -s gnu_errfmt
 shopt -s nullglob
+shopt -s extglob
 
 
 # NOTE: don't touch the RHS, it gets replaced at runtime
@@ -19,7 +20,7 @@ direnv="$(command -v direnv)"
 DIRENV_LOG_FORMAT="${DIRENV_LOG_FORMAT-direnv: %s}"
 
 # Where direnv configuration should be stored
-direnv_config_dir=${XDG_CONFIG_DIR:-$HOME/.config}/direnv
+direnv_config_dir=${XDG_CONFIG_HOME:-$HOME/.config}/direnv
 
 # This variable can be used by programs to detect when they are running inside
 # of a .envrc evaluation context. It is ignored by the direnv diffing
@@ -115,8 +116,23 @@ join_args() {
 #    # output: /usr/local/foo
 #
 expand_path() {
-  "$direnv" expand_path "$@"
+  local REPLY; __rp_absolute ${2+"$2"} ${1+"$1"}; echo "$REPLY"
 }
+
+# --- vendored from https://github.com/bashup/realpaths
+__rp_dirname() { REPLY=.; ! [[ $1 =~ /+[^/]+/*$ ]] || REPLY="${1%${BASH_REMATCH[0]}}"; REPLY=${REPLY:-/}; }
+__rp_absolute() {
+	REPLY=$PWD; local eg=extglob; ! shopt -q $eg || eg=; ${eg:+shopt -s $eg}
+	while (($#)); do case $1 in
+		//|//[^/]*) REPLY=//; set -- "${1:2}" "${@:2}" ;;
+		/*) REPLY=/; set -- "${1##+(/)}" "${@:2}" ;;
+		*/*) set -- "${1%%/*}" "${1##${1%%/*}+(/)}" "${@:2}" ;;
+		''|.) shift ;;
+		..) __rp_dirname "$REPLY"; shift ;;
+		*) REPLY="${REPLY%/}/$1"; shift ;;
+	esac; done; ${eg:+shopt -u $eg}
+}
+# ---
 
 # Usage: dotenv [<dotenv>]
 #
@@ -214,8 +230,8 @@ source_env() {
   rcfile=$(user_rel_path "$rcpath")
   watch_file "$rcpath"
 
-  pushd "$(pwd 2>/dev/null)" >/dev/null
-  pushd "$(dirname "$rcpath")" >/dev/null
+  pushd "$(pwd 2>/dev/null)" >/dev/null || return 1
+  pushd "$(dirname "$rcpath")" >/dev/null || return 1
   if [[ -f ./$(basename "$rcpath") ]]; then
     log_status "loading $rcfile"
     # shellcheck disable=SC1090
@@ -223,8 +239,8 @@ source_env() {
   else
     log_status "referenced $rcfile does not exist"
   fi
-  popd >/dev/null
-  popd >/dev/null
+  popd >/dev/null || return 1
+  popd >/dev/null || return 1
 }
 
 # Usage: watch_file <filename> [<filename> ...]
@@ -258,49 +274,52 @@ source_up() {
 # process - cause that process to run "direnv dump" and then wrap
 # the results with direnv_load.
 #
+# shellcheck disable=SC1090
 direnv_load() {
   # Backup watches in case of `nix-shell --pure`
   local prev_watches=$DIRENV_WATCHES
-  local prev_dump_file_path=${DIRENV_DUMP_FILE_PATH:-}
+  local temp_dir output_file script_file exit_code
 
-  # Create pipe
-  DIRENV_DUMP_FILE_PATH=$(mktemp -u)
-  export DIRENV_DUMP_FILE_PATH
-  mkfifo "$DIRENV_DUMP_FILE_PATH"
+  # Prepare a temporary place for dumps and such.
+  temp_dir=$(mktemp -dt direnv.XXXXXX) || {
+    log_error "Could not create temporary directory."
+    return 1
+  }
+  output_file="$temp_dir/output"
+  script_file="$temp_dir/script"
 
-  # Run program in the background
-  ("$@")&
+  # Chain the following commands explicitly so that we can capture the exit code
+  # of the whole chain. Crucially this ensures that we don't return early (via
+  # `set -e`, for example) and hence always remove the temporary directory.
+  touch "$output_file" &&
+    DIRENV_DUMP_FILE_PATH="$output_file" "$@" &&
+    { test -s "$output_file" || {
+        log_error "Environment not dumped; did you invoke 'direnv dump'?"
+        false
+      }
+    } &&
+    "$direnv" apply_dump "$output_file" > "$script_file" &&
+    source "$script_file" ||
+      exit_code=$?
 
-  # Apply the output of the dump
-  local exports
-  exports=$("$direnv" apply_dump "$DIRENV_DUMP_FILE_PATH")
-  local es=$?
-
-  # Regroup
-  rm "$DIRENV_DUMP_FILE_PATH"
-  wait # wait on the child process to exit
-  local es2=$?
-
-  if [[ $es -ne 0 ]]; then
-    return $es
-  fi
-
-  if [[ $es2 -ne 0 ]]; then
-    return $es2
-  fi
-
-  eval "$exports"
+  # Scrub temporary directory
+  rm -rf "$temp_dir"
 
   # Restore watches if the dump wiped them
-  if [[ -z "$DIRENV_WATCHES" ]]; then
+  if [[ -z "${DIRENV_WATCHES:-}" ]]; then
     export DIRENV_WATCHES=$prev_watches
   fi
-  # Allow nesting
-  if [[ -n "$prev_dump_file_path" ]]; then
-    export DIRENV_DUMP_FILE_PATH=$prev_dump_file_path
-  else
-    unset DIRENV_DUMP_FILE_PATH
-  fi
+
+  # Exit accordingly
+  return ${exit_code:-0}
+}
+
+# Usage: direnv_apply_dump <file>
+#
+# Loads the output of `direnv dump` that was stored in a file.
+direnv_apply_dump() {
+  local path=$1
+  eval "$("$direnv" apply_dump "$path")"
 }
 
 # Usage: PATH_add <path> [<path> ...]
@@ -366,6 +385,63 @@ MANPATH_add() {
   export "MANPATH=$dir:$old_paths"
 }
 
+# Usage: PATH_rm <pattern> [<pattern> ...]
+# Removes directories that match any of the given shell patterns from
+# the PATH environment variable. Order of the remaining directories is
+# preserved in the resulting PATH.
+#
+# Bash pattern syntax:
+#   https://www.gnu.org/software/bash/manual/html_node/Pattern-Matching.html
+#
+# Example:
+#
+#   echo $PATH
+#   # output: /dontremove/me:/remove/me:/usr/local/bin/:...
+#   PATH_rm '/remove/*'
+#   echo $PATH
+#   # output: /dontremove/me:/usr/local/bin/:...
+#
+PATH_rm() {
+  path_rm PATH "$@"
+}
+
+# Usage: path_rm <varname> <pattern> [<pattern> ...]
+#
+# Works like PATH_rm except that it's for an arbitrary <varname>.
+path_rm() {
+  local path i discard var_name="$1"
+  # split existing paths into an array
+  declare -a path_array
+  IFS=: read -ra path_array <<<"${!1}"
+  shift
+
+  patterns=("$@")
+  results=()
+
+  # iterate over path entries, discard entries that match any of the patterns
+  for path in "${path_array[@]}"; do
+    discard=false
+    for pattern in "${patterns[@]}"; do
+      if [[ "$path" == +($pattern) ]]; then
+        discard=true
+        break
+      fi
+    done
+    if ! $discard; then
+      results+=("$path")
+    fi
+  done
+
+  # join the result paths
+  result=$(
+    IFS=:
+    echo "${results[*]}"
+  )
+
+  # and finally export back the result to the original variable
+  export "$var_name=$result"
+}
+
 # Usage: load_prefix <prefix_path>
 #
 # Expands some common path variables for the given <prefix_path> prefix. This is
@@ -413,10 +489,11 @@ layout() {
 
 # Usage: layout go
 #
-# Sets the GOPATH environment variable to the current directory.
+# Adds "$(direnv_layout_dir)/go" to the GOPATH environment variable.
+# And also adds "$PWD/bin" to the PATH environment variable.
 #
 layout_go() {
-  path_add GOPATH "$PWD"
+  path_add GOPATH "$(direnv_layout_dir)/go"
   PATH_add bin
 }
 
@@ -532,7 +609,7 @@ layout_anaconda() {
     conda=$(command -v conda)
   fi
   PATH_add "$(dirname "$conda")"
-  env_loc=$("$conda" env list | grep -- "^$env_name\s")
+  env_loc=$("$conda" env list | grep -- '^'"$env_name"'\s')
   if [[ ! "$env_loc" == $env_name*$env_name ]]; then
     if [[ -e environment.yml ]]; then
       log_status "creating conda environment"
@@ -806,7 +883,7 @@ __main__() {
 
   __dump_at_exit() {
     local ret=$?
-    "$direnv" dump json 3
+    "$direnv" dump json "" >&3
     trap - EXIT
     exit "$ret"
   }

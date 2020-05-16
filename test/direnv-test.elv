@@ -22,10 +22,10 @@ fn direnv-eval {
 	try {
 		m = (direnv export elvish | from-json)
 		keys $m | each [k]{
-			if (==s $k 'null') {
-				unset-env $k
-			} else {
+			if $m[$k] {
 				set-env $k $m[$k]
+			} else {
+				unset-env $k
 			}
 		}
 	} except e {
@@ -127,6 +127,11 @@ test-scenario "child-env" {
 	test-eq $E:CHILD "1"
 	test-eq $E:PARENT_POST "1"
 	test-eq $E:REMOVE_ME ""
+}
+
+test-scenario "utf-8" {
+	direnv-eval
+	test-eq $E:UTFSTUFF "♀♂"
 }
 
 ## TODO: special-vars
