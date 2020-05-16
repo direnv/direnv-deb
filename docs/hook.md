@@ -28,8 +28,8 @@ eval "$(direnv hook zsh)"
 
 Add the following line at the end of the `~/.config/fish/config.fish` file:
 
-```fish
-direnv hook fish | source
+```sh
+eval (direnv hook fish)
 ```
 
 ## TCSH

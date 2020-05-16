@@ -23,19 +23,36 @@ type Config struct {
 	RCDir           string
 	TomlPath        string
 	DisableStdin    bool
+	StrictEnv       bool
 	WarnTimeout     time.Duration
 	WhitelistPrefix []string
 	WhitelistExact  map[string]bool
 }
 
-type tomlConfig struct {
-	BashPath     string        `toml:"bash_path"`
-	DisableStdin bool          `toml:"disable_stdin"`
-	WarnTimeout  time.Duration `toml:"warn_timeout"`
-	Whitelist    whitelist     `toml:"whitelist"`
+type tomlDuration struct {
+	time.Duration
 }
 
-type whitelist struct {
+func (d *tomlDuration) UnmarshalText(text []byte) error {
+	var err error
+	d.Duration, err = time.ParseDuration(string(text))
+	return err
+}
+
+type tomlConfig struct {
+	*tomlGlobal               // For backward-compatibility
+	Global      *tomlGlobal   `toml:"global"`
+	Whitelist   tomlWhitelist `toml:"whitelist"`
+}
+
+type tomlGlobal struct {
+	BashPath     string       `toml:"bash_path"`
+	DisableStdin bool         `toml:"disable_stdin"`
+	StrictEnv    bool         `toml:"strict_env"`
+	WarnTimeout  tomlDuration `toml:"warn_timeout"`
+}
+
+type tomlWhitelist struct {
 	Prefix []string
 	Exact  []string
 }
@@ -80,16 +97,21 @@ func LoadConfig(env Env) (config *Config, err error) {
 	// Load the TOML config
 	config.TomlPath = filepath.Join(config.ConfDir, "direnv.toml")
 	if _, statErr := os.Stat(config.TomlPath); statErr != nil {
-		config.TomlPath = ""
-	}
-
-	config.TomlPath = filepath.Join(config.ConfDir, "config.toml")
-	if _, statErr := os.Stat(config.TomlPath); statErr != nil {
-		config.TomlPath = ""
+		config.TomlPath = filepath.Join(config.ConfDir, "config.toml")
+		if _, statErr := os.Stat(config.TomlPath); statErr != nil {
+			config.TomlPath = ""
+		}
 	}
 
 	if config.TomlPath != "" {
-		var tomlConf tomlConfig
+		// Declare global once and then share it between the top-level and Global
+		// keys. The goal here is to let the decoder fill global regardless of if
+		// the values are in the [global] section or not. The reason we do that is
+		var global tomlGlobal
+		tomlConf := tomlConfig{
+			tomlGlobal: &global,
+			Global:     &global,
+		}
 		if _, err = toml.DecodeFile(config.TomlPath, &tomlConf); err != nil {
 			err = fmt.Errorf("LoadConfig() failed to parse %s: %q", config.TomlPath, err)
 			return
@@ -105,9 +127,10 @@ func LoadConfig(env Env) (config *Config, err error) {
 			config.WhitelistExact[path] = true
 		}
 
-		config.DisableStdin = tomlConf.DisableStdin
 		config.BashPath = tomlConf.BashPath
-		config.WarnTimeout = tomlConf.WarnTimeout
+		config.DisableStdin = tomlConf.DisableStdin
+		config.StrictEnv = tomlConf.StrictEnv
+		config.WarnTimeout = tomlConf.WarnTimeout.Duration
 	}
 
 	if config.WarnTimeout == 0 {
@@ -160,7 +183,7 @@ func (config *Config) LoadedRC() *RC {
 }
 
 // FindRC looks for a RC file in the config environment
-func (config *Config) FindRC() *RC {
+func (config *Config) FindRC() (*RC, error) {
 	return FindRC(config.WorkDir, config)
 }
 
