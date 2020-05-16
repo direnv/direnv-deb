@@ -1,6 +1,2 @@
 0001-Respect-PREFIX-in-GNUmakefile.patch
-0002-Escape-.-at-the-beginning-of-line-to-remove-manpage-.patch
-0003-Re-write-grep-pattern-to-avoid-shell-escape.patch
-0004-stdlib.sh-Fix-shellcheck-warning.patch
 0005-GNUMakefile-Comment-out-golangci-lint.patch
-0006-test-elvish-Fix-evaluation-function.patch
