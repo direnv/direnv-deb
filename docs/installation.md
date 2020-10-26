@@ -15,12 +15,11 @@ direnv is packaged for a variety of systems:
 * [Gentoo go-overlay](https://github.com/Dr-Terrible/go-overlay)
 * [NetBSD pkgsrc-wip](http://www.pkgsrc.org/wip/)
 * [NixOS](https://nixos.org/nixos/packages.html?query=direnv)
-* [OSX Homebrew](http://brew.sh/)
+* [macOS Homebrew](http://brew.sh/)
 * [openSUSE](https://build.opensuse.org/package/show/openSUSE%3AFactory/direnv)
 * [MacPorts](https://www.macports.org/)
 * [Ubuntu](https://packages.ubuntu.com/search?keywords=direnv&searchon=names&suite=all&section=all)
 * [GNU Guix](https://www.gnu.org/software/guix/)
-* [Snap](https://snapcraft.io/direnv)
 
 See also:
 

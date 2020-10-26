@@ -1,4 +1,45 @@
 
+2.23.1 / 2020-10-22
+==================
+
+  * fix: handle links on Mac when using `allow` (#696)
+  * fix: use restored env in exec (#695)
+  * stdlib: add basename and dirname from realpath (#693)
+  * stdlib.sh: remove tabs
+  * dist: compile all the binaries statically
+
+2.23.0 / 2020-10-10
+==================
+
+  * stdlib: add source_url function (#562)
+  * direnv: add fetchurl command (#686)
+  * shell: Update Elvish hook to replace deprecated `explode` (#685)
+
+2.22.1 / 2020-10-06
+==================
+
+  * Look for stdlib in DIRENV_CONFIG (#679)
+  * stdlib: use Bash 3.0-compatible array expansion (#676)
+  * Clarify path to direnv.toml (#678)
+  * stdlib/use_julia: fix a bug in parameter substitution for empty or (#667)
+  * man: update the layout_go documentation
+  * stdlib:  adds GOPATH/bin to PATH (#670)
+
+2.22.0 / 2020-09-01
+==================
+
+  * stdlib: use_julia <version> (#666)
+  * stdlib: semver_search (#665)
+  * direnv-stdlib.1: add layout julia (#661)
+  * README: spelling correction (#660)
+  * README.md: add shadowenv to similar projects (#659)
+  * docs: remove Snap from the installations
+  * OSX -> macOS (#655)
+  * Update shell_fish.go to use \X for UTF encoding (#584)
+  * Change XDG_CONFIG_DIR to XDG_CONFIG_HOME (#641)
+  * Streamline core algorithm of export and exec (#636)
+  * test: add failure test-case (#637)
+
 2.21.3 / 2020-05-08
 ==================
 

@@ -20,7 +20,7 @@ direnv="$(command -v direnv)"
 DIRENV_LOG_FORMAT="${DIRENV_LOG_FORMAT-direnv: %s}"
 
 # Where direnv configuration should be stored
-direnv_config_dir=${XDG_CONFIG_HOME:-$HOME/.config}/direnv
+direnv_config_dir="${DIRENV_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/direnv}"
 
 # This variable can be used by programs to detect when they are running inside
 # of a .envrc evaluation context. It is ignored by the direnv diffing
@@ -116,21 +116,23 @@ join_args() {
 #    # output: /usr/local/foo
 #
 expand_path() {
-  local REPLY; __rp_absolute ${2+"$2"} ${1+"$1"}; echo "$REPLY"
+  local REPLY; realpath.absolute "${2+"$2"}" "${1+"$1"}"; echo "$REPLY"
 }
 
 # --- vendored from https://github.com/bashup/realpaths
-__rp_dirname() { REPLY=.; ! [[ $1 =~ /+[^/]+/*$ ]] || REPLY="${1%${BASH_REMATCH[0]}}"; REPLY=${REPLY:-/}; }
-__rp_absolute() {
-	REPLY=$PWD; local eg=extglob; ! shopt -q $eg || eg=; ${eg:+shopt -s $eg}
-	while (($#)); do case $1 in
-		//|//[^/]*) REPLY=//; set -- "${1:2}" "${@:2}" ;;
-		/*) REPLY=/; set -- "${1##+(/)}" "${@:2}" ;;
-		*/*) set -- "${1%%/*}" "${1##${1%%/*}+(/)}" "${@:2}" ;;
-		''|.) shift ;;
-		..) __rp_dirname "$REPLY"; shift ;;
-		*) REPLY="${REPLY%/}/$1"; shift ;;
-	esac; done; ${eg:+shopt -u $eg}
+realpath.dirname() { REPLY=.; ! [[ $1 =~ /+[^/]+/*$|^//$ ]] || REPLY="${1%${BASH_REMATCH[0]}}"; REPLY=${REPLY:-/}; }
+realpath.basename(){ REPLY=/; ! [[ $1 =~ /*([^/]+)/*$ ]] || REPLY="${BASH_REMATCH[1]}"; }
+
+realpath.absolute() {
+  REPLY=$PWD; local eg=extglob; ! shopt -q $eg || eg=; ${eg:+shopt -s $eg}
+  while (($#)); do case $1 in
+    //|//[^/]*) REPLY=//; set -- "${1:2}" "${@:2}" ;;
+    /*) REPLY=/; set -- "${1##+(/)}" "${@:2}" ;;
+    */*) set -- "${1%%/*}" "${1##${1%%/*}+(/)}" "${@:2}" ;;
+    ''|.) shift ;;
+    ..) realpath.dirname "$REPLY"; shift ;;
+    *) REPLY="${REPLY%/}/$1"; shift ;;
+  esac; done; ${eg:+shopt -u $eg}
 }
 # ---
 
@@ -218,7 +220,7 @@ find_up() {
 # NOTE: the other ".envrc" is not checked by the security framework.
 source_env() {
   local rcpath=${1/#\~/$HOME}
-  local rcfile
+  local REPLY
   if [[ -d $rcpath ]]; then
     rcpath=$rcpath/.envrc
   fi
@@ -227,15 +229,21 @@ source_env() {
     return 1
   fi
 
+  realpath.dirname "$rcpath"
+  local rcpath_dir=$REPLY
+  realpath.basename "$rcpath"
+  local rcpath_base=$REPLY
+
+  local rcfile
   rcfile=$(user_rel_path "$rcpath")
   watch_file "$rcpath"
 
   pushd "$(pwd 2>/dev/null)" >/dev/null || return 1
-  pushd "$(dirname "$rcpath")" >/dev/null || return 1
-  if [[ -f ./$(basename "$rcpath") ]]; then
+  pushd "$rcpath_dir" >/dev/null || return 1
+  if [[ -f ./$rcpath_base ]]; then
     log_status "loading $rcfile"
     # shellcheck disable=SC1090
-    . "./$(basename "$rcpath")"
+    . "./$rcpath_base"
   else
     log_status "referenced $rcfile does not exist"
   fi
@@ -264,6 +272,34 @@ source_up() {
   if [[ -n $dir ]]; then
     source_env "$dir"
   fi
+}
+
+# Usage: fetchurl <url> [<integrity-hash>]
+#
+# Fetches a URL and outputs a file with its content. If the <integrity-hash>
+# is given it will also validate the content of the file before returning it.
+fetchurl() {
+  "$direnv" fetchurl "$@"
+}
+
+# Usage: source_url <url> <integrity-hash>
+#
+# Fetches a URL and evalutes its content.
+source_url() {
+  local url=$1 integrity_hash=${2:-} path
+  if [[ -z $url ]]; then
+    log_error "source_url: <url> argument missing"
+    return 1
+  fi
+  if [[ -z $integrity_hash ]]; then
+    log_error "source_url: <integrity-hash> argument missing. Use \`direnv fetchurl $url\` to find out the hash."
+    return 1
+  fi
+
+  log_status "loading $url ($integrity_hash)"
+  path=$(fetchurl "$url" "$integrity_hash")
+  # shellcheck disable=SC1090
+  source "$path"
 }
 
 # Usage: direnv_load <command-generating-dump-output>
@@ -351,12 +387,12 @@ path_add() {
   local path i var_name="$1"
   # split existing paths into an array
   declare -a path_array
-  IFS=: read -ra path_array <<<"${!1}"
+  IFS=: read -ra path_array <<<"${!1-}"
   shift
 
   # prepend the passed paths in the right order
   for ((i = $#; i > 0; i--)); do
-    path_array=("$(expand_path "${!i}")" "${path_array[@]}")
+    path_array=("$(expand_path "${!i}")" ${path_array[@]+"${path_array[@]}"})
   done
 
   # join back all the paths
@@ -419,9 +455,9 @@ path_rm() {
   results=()
 
   # iterate over path entries, discard entries that match any of the patterns
-  for path in "${path_array[@]}"; do
+  for path in ${path_array[@]+"${path_array[@]}"}; do
     discard=false
-    for pattern in "${patterns[@]}"; do
+    for pattern in ${patterns[@]+"${patterns[@]}"}; do
       if [[ "$path" == +($pattern) ]]; then
         discard=true
         break
@@ -466,15 +502,49 @@ path_rm() {
 #    load_prefix ~/rubies/ruby-1.9.3
 #
 load_prefix() {
-  local dir
-  dir=$(expand_path "$1")
-  MANPATH_add "$dir/man"
-  MANPATH_add "$dir/share/man"
-  path_add CPATH "$dir/include"
-  path_add LD_LIBRARY_PATH "$dir/lib"
-  path_add LIBRARY_PATH "$dir/lib"
-  path_add PATH "$dir/bin"
-  path_add PKG_CONFIG_PATH "$dir/lib/pkgconfig"
+  local REPLY
+  realpath.absolute "$1"
+  MANPATH_add "$REPLY/man"
+  MANPATH_add "$REPLY/share/man"
+  path_add CPATH "$REPLY/include"
+  path_add LD_LIBRARY_PATH "$REPLY/lib"
+  path_add LIBRARY_PATH "$REPLY/lib"
+  path_add PATH "$REPLY/bin"
+  path_add PKG_CONFIG_PATH "$REPLY/lib/pkgconfig"
+}
+
+# Usage: semver_search <directory> <folder_prefix> <partial_version>
+#
+# Search a directory for the highest version number in SemVer format (X.Y.Z).
+#
+# Examples:
+#
+# $ tree .
+# .
+# |-- dir
+#     |-- program-1.4.0
+#     |-- program-1.4.1
+#     |-- program-1.5.0
+# $ semver_search "dir" "program-" "1.4.0"
+# 1.4.0
+# $ semver_search "dir" "program-" "1.4"
+# 1.4.1
+# $ semver_search "dir" "program-" "1"
+# 1.5.0
+#
+semver_search() {
+  local version_dir=${1:-}
+  local prefix=${2:-}
+  local partial_version=${3:-}
+  # Look for matching versions in $version_dir path
+  # Strip possible "/" suffix from $version_dir, then use that to
+  # strip $version_dir/$prefix prefix from line.
+  # Sort by version: split by "." then reverse numeric sort for each piece of the version string
+  # The first one is the highest
+  find "$version_dir" -maxdepth 1 -mindepth 1 -type d -name "${prefix}${partial_version}*" \
+    | while IFS= read -r line; do echo "${line#${version_dir%/}/${prefix}}"; done \
+    | sort -t . -k 1,1rn -k 2,2rn -k 3,3rn \
+    | head -1
 }
 
 # Usage: layout <type>
@@ -494,7 +564,7 @@ layout() {
 #
 layout_go() {
   path_add GOPATH "$(direnv_layout_dir)/go"
-  PATH_add bin
+  PATH_add "$(direnv_layout_dir)/go/bin"
 }
 
 # Usage: layout node
@@ -603,12 +673,14 @@ layout_anaconda() {
   local env_name=$1
   local env_loc
   local conda
+  local REPLY
   if [[ $# -gt 1 ]]; then
     conda=${2}
   else
     conda=$(command -v conda)
   fi
-  PATH_add "$(dirname "$conda")"
+  realpath.dirname "$conda"
+  PATH_add "$REPLY/$conda"
   env_loc=$("$conda" env list | grep -- '^'"$env_name"'\s')
   if [[ ! "$env_loc" == $env_name*$env_name ]]; then
     if [[ -e environment.yml ]]; then
@@ -733,6 +805,50 @@ use() {
   "use_$cmd" "$@"
 }
 
+# Usage: use julia [<version>]
+# Loads specified Julia version.
+#
+# Environment Variables:
+#
+# - $JULIA_VERSIONS (required)
+#   You must specify a path to your installed Julia versions with the `$JULIA_VERSIONS` variable.
+#
+# - $JULIA_VERSION_PREFIX (optional) [default="julia-"]
+#   Overrides the default version prefix.
+#
+use_julia() {
+  local version=${1:-}
+  local julia_version_prefix=${JULIA_VERSION_PREFIX-julia-}
+  local search_version
+  local julia_prefix
+
+  if [[ -z ${JULIA_VERSIONS:-} || -z $version ]]; then
+    log_error "Must specify the \$JULIA_VERSIONS environment variable and a Julia version!"
+    return 1
+  fi
+
+  julia_prefix="${JULIA_VERSIONS}/${julia_version_prefix}${version}"
+
+  if [[ ! -d ${julia_prefix} ]]; then
+    search_version=$(semver_search "${JULIA_VERSIONS}" "${julia_version_prefix}" "${version}")
+    julia_prefix="${JULIA_VERSIONS}/${julia_version_prefix}${search_version}"
+  fi
+
+  if [[ ! -d $julia_prefix ]]; then
+    log_error "Unable to find Julia version ($version) in ($JULIA_VERSIONS)!"
+    return 1
+  fi
+
+  if [[ ! -x $julia_prefix/bin/julia ]]; then
+    log_error "Unable to load Julia binary (julia) for version ($version) in ($JULIA_VERSIONS)!"
+    return 1
+  fi
+
+  load_prefix "$julia_prefix"
+
+  log_status "Successfully loaded $(julia --version), from prefix ($julia_prefix)"
+}
+
 # Usage: use rbenv
 #
 # Loads rbenv which add the ruby wrappers available on the PATH.
@@ -776,12 +892,12 @@ rvm() {
 #
 # - $NODE_VERSION_PREFIX (optional) [default="node-v"]
 #   Overrides the default version prefix.
-
+#
 use_node() {
   local version=${1:-}
   local via=""
   local node_version_prefix=${NODE_VERSION_PREFIX-node-v}
-  local node_wanted
+  local search_version
   local node_prefix
 
   if [[ -z ${NODE_VERSIONS:-} || ! -d $NODE_VERSIONS ]]; then
@@ -804,20 +920,9 @@ use_node() {
     return 1
   fi
 
-  node_wanted=${node_version_prefix}${version}
-  node_prefix=$(
-    # Look for matching node versions in $NODE_VERSIONS path
-    # Strip possible "/" suffix from $NODE_VERSIONS, then use that to
-    # Strip $NODE_VERSIONS/$NODE_VERSION_PREFIX prefix from line.
-    # Sort by version: split by "." then reverse numeric sort for each piece of the version string
-    # The first one is the highest
-    find "$NODE_VERSIONS" -maxdepth 1 -mindepth 1 -type d -name "$node_wanted*" \
-      | while IFS= read -r line; do echo "${line#${NODE_VERSIONS%/}/${node_version_prefix}}"; done \
-      | sort -t . -k 1,1rn -k 2,2rn -k 3,3rn \
-      | head -1
-  )
-
-  node_prefix="${NODE_VERSIONS}/${node_version_prefix}${node_prefix}"
+  # Search for the highest version matchin $version in the folder
+  search_version=$(semver_search "$NODE_VERSIONS" "${node_version_prefix}" "${version}")
+  node_prefix="${NODE_VERSIONS}/${node_version_prefix}${search_version}"
 
   if [[ ! -d $node_prefix ]]; then
     log_error "Unable to find NodeJS version ($version) in ($NODE_VERSIONS)!"

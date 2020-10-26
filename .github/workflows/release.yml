@@ -13,11 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go 1.13.6
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v2.1.3
         with:
           go-version: 1.13.6
       - name: Checkout code
-        uses: actions/checkout@master
+        uses: actions/checkout@v2.3.3
       - name: Get release notes
         id: release-notes
         run: |
