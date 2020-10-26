@@ -81,6 +81,25 @@ Loads another `.envrc` if found when searching from the parent directory up to /
 
 NOTE: the other `.envrc` is not checked by the security framework.
 
+### `source_url <url> <integrity-hash>`
+
+Loads another script from the given `url`. Before loading it it will check the
+integrity using the provided `integrity-hash`.
+
+To find the value of the `integrity-hash`, call `direnv fetchurl <url>` and
+extract the hash from the outputted message.
+
+See also `direnv-fetchurl(1)` for more details.
+
+### `fetchurl <url> [<integrity-hash>]`
+
+Fetches the given `url` onto disk and outputs it's path location on stdout.
+
+If the `integrity-hash` argument is provided, it will also check the integrity
+of the script.
+
+See also `direnv-fetchurl(1)` for more details.
+
 ### `direnv_apply_dump <file>`
 
 Loads the output of `direnv dump` that was stored in a file.
@@ -149,13 +168,38 @@ Example:
     # Then in the .envrc
     load_prefix ~/rubies/ruby-1.9.3
 
+
+### `semver_search <directory> <folder_prefix> <partial_version>`
+
+Search a directory for the highest version number in SemVer format (X.Y.Z).
+
+Examples:
+
+    $ tree .
+    .
+    |-- dir
+        |-- program-1.4.0
+        |-- program-1.4.1
+        |-- program-1.5.0
+    $ semver_search "dir" "program-" "1.4.0"
+    1.4.0
+    $ semver_search "dir" "program-" "1.4"
+    1.4.1
+    $ semver_search "dir" "program-" "1"
+    1.5.0
+
 ### `layout <type>`
 
 A semantic dispatch used to describe common project layouts.
 
 ### `layout go`
 
-Sets the GOPATH environment variable to the current directory.
+Adds "$(direnv_layout_dir)/go" to the GOPATH environment variable.
+And also adds "$PWD/bin" to the PATH environment variable.
+
+### `layout julia`
+
+Sets the `JULIA_PROJECT` environment variable to the current directory.
 
 ### `layout node`
 
@@ -183,7 +227,7 @@ A shortcut for `layout python python3`
 
 ### `layout ruby`
 
-Sets the GEM_HOME environment variable to `$PWD/.direnv/ruby/RUBY_VERSION`. This forces the installation of any gems into the project's sub-folder. If you're using bundler it will create wrapper programs that can be invoked directly instead of using the `bundle exec` prefix.  
+Sets the GEM_HOME environment variable to `$PWD/.direnv/ruby/RUBY_VERSION`. This forces the installation of any gems into the project's sub-folder. If you're using bundler it will create wrapper programs that can be invoked directly instead of using the `bundle exec` prefix.
 
 ### `use <program_name> [<version>]`
 
@@ -196,6 +240,20 @@ Example:
     }
     use ruby 1.9.3
     # output: Ruby 1.9.3
+
+### `use julia <version>`
+
+Loads the specified Julia version. You must specify a path to the directory with
+installed Julia versions using $JULIA_VERSIONS. You can optionally override the
+prefix for folders inside $JULIA_VERSIONS (default `julia-`) using $JULIA_VERSION_PREFIX.
+If no exact match for `<version>` is found a search will be performed and the latest
+version will be loaded.
+
+Examples (.envrc):
+
+    use julia 1.5.1   # loads $JULIA_VERSIONS/julia-1.5.1
+    use julia 1.5     # loads $JULIA_VERSIONS/julia-1.5.1
+    use julia master  # loads $JULIA_VERSIONS/julia-master
 
 ### `use rbenv`
 

@@ -108,6 +108,29 @@ Loads another \fB\fC\&.envrc\fR if found when searching from the parent director
 .PP
 NOTE: the other \fB\fC\&.envrc\fR is not checked by the security framework.
 
+.SS \fB\fCsource\_url <url> <integrity\-hash>\fR
+.PP
+Loads another script from the given \fB\fCurl\fR\&. Before loading it it will check the
+integrity using the provided \fB\fCintegrity\-hash\fR\&.
+
+.PP
+To find the value of the \fB\fCintegrity\-hash\fR, call \fB\fCdirenv fetchurl <url>\fR and
+extract the hash from the outputted message.
+
+.PP
+See also \fB\fCdirenv\-fetchurl(1)\fR for more details.
+
+.SS \fB\fCfetchurl <url> [<integrity\-hash>]\fR
+.PP
+Fetches the given \fB\fCurl\fR onto disk and outputs it's path location on stdout.
+
+.PP
+If the \fB\fCintegrity\-hash\fR argument is provided, it will also check the integrity
+of the script.
+
+.PP
+See also \fB\fCdirenv\-fetchurl(1)\fR for more details.
+
 .SS \fB\fCdirenv\_apply\_dump <file>\fR
 .PP
 Loads the output of \fB\fCdirenv dump\fR that was stored in a file.
@@ -217,13 +240,45 @@ load\_\&prefix \~\&/rubies/ruby\-\&1.9.3
 .fi
 .RE
 
+.SS \fB\fCsemver\_search <directory> <folder\_prefix> <partial\_version>\fR
+.PP
+Search a directory for the highest version number in SemVer format (X.Y.Z).
+
+.PP
+Examples:
+
+.PP
+.RS
+
+.nf
+$ tree .
+.
+|\-\- dir
+    |\-\- program\-1.4.0
+    |\-\- program\-1.4.1
+    |\-\- program\-1.5.0
+$ semver\_search "dir" "program\-" "1.4.0"
+1.4.0
+$ semver\_search "dir" "program\-" "1.4"
+1.4.1
+$ semver\_search "dir" "program\-" "1"
+1.5.0
+
+.fi
+.RE
+
 .SS \fB\fClayout <type>\fR
 .PP
 A semantic dispatch used to describe common project layouts.
 
 .SS \fB\fClayout go\fR
 .PP
-Sets the GOPATH environment variable to the current directory.
+Adds "$(direnv\_layout\_dir)/go" to the GOPATH environment variable.
+And also adds "$PWD/bin" to the PATH environment variable.
+
+.SS \fB\fClayout julia\fR
+.PP
+Sets the \fB\fCJULIA\_PROJECT\fR environment variable to the current directory.
 
 .SS \fB\fClayout node\fR
 .PP
@@ -272,6 +327,28 @@ use\_ruby() {
 }
 use ruby 1.9.3
 # output: Ruby 1.9.3
+
+.fi
+.RE
+
+.SS \fB\fCuse julia <version>\fR
+.PP
+Loads the specified Julia version. You must specify a path to the directory with
+installed Julia versions using $JULIA\_VERSIONS. You can optionally override the
+prefix for folders inside $JULIA\_VERSIONS (default \fB\fCjulia\-\fR) using $JULIA\_VERSION\_PREFIX.
+If no exact match for \fB\fC<version>\fR is found a search will be performed and the latest
+version will be loaded.
+
+.PP
+Examples (.envrc):
+
+.PP
+.RS
+
+.nf
+use julia 1.5.1   # loads $JULIA\_VERSIONS/julia\-1.5.1
+use julia 1.5     # loads $JULIA\_VERSIONS/julia\-1.5.1
+use julia master  # loads $JULIA\_VERSIONS/julia\-master
 
 .fi
 .RE

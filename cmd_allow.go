@@ -17,7 +17,7 @@ var CmdAllow = &Cmd{
 var migrationMessage = `
 Migrating the allow data to the new location
 
-The allowed .envrc permissions used to be stored in the XDG_CONFIG_DIR. It's
+The allowed .envrc permissions used to be stored in the XDG_CONFIG_HOME. It's
 better to keep that folder for user-editable configuration so the data is
 being moved to XDG_DATA_HOME.
 `
@@ -25,7 +25,12 @@ being moved to XDG_DATA_HOME.
 func cmdAllowAction(env Env, args []string, config *Config) (err error) {
 	var rcPath string
 	if len(args) > 1 {
-		rcPath = args[1]
+		if rcPath, err = filepath.Abs(args[1]); err != nil {
+			return err
+		}
+		if rcPath, err = filepath.EvalSymlinks(rcPath); err != nil {
+			return err
+		}
 	} else {
 		if rcPath, err = os.Getwd(); err != nil {
 			return err
