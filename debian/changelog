@@ -1,3 +1,10 @@
+direnv (2.25.2-1) unstable; urgency=medium
+
+  * New upstream version 2.25.2
+  * Include upstream changelog in the package
+
+ -- Punit Agrawal <punit@debian.org>  Mon, 14 Dec 2020 20:50:34 +0900
+
 direnv (2.23.1-1) unstable; urgency=medium
 
   * New upstream version 2.23.1
