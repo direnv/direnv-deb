@@ -1,4 +1,25 @@
 
+2.27.0 / 2021-01-01
+==================
+
+  * fixed fish shell hook to work with eval (#743)
+  * dist: remove darwin/386
+  * nix: update to nixpkgs@nixos-20.09
+  * packaging: stop vendoring the Go code (#739)
+  * packaging: change packaging. DESTDIR -> PREFIX, fish hook (#741)
+
+2.26.0 / 2020-12-27
+==================
+
+  * updated fish hook support issue (#732)
+  * ci: add basic windows CI (#737)
+  * test: fix shellcheck usage in ./test/stdlib.bash
+  * test: fix use_julia test for NixOS
+  * remove dead code: rootDir
+  * fix: create temp dir in current working dir for one test (#735)
+  * Add `dotenv_if_exists` (#734)
+  * stdlib: add watch_dir command (#697)
+
 2.25.2 / 2020-12-12
 ==================
 

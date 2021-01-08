@@ -1,17 +1,14 @@
 { pkgs ? import ./nix {} }:
 with pkgs;
 
-buildGoPackage rec {
+buildGoModule rec {
   name = "direnv-${version}";
   version = lib.fileContents ./version.txt;
-  goPackagePath = "github.com/direnv/direnv";
   subPackages = ["."];
 
-  src = lib.cleanSource ./.;
+  vendorSha256 = "084x7d7sshcsyim76d6pl6127nlqacgwwnm965srl9y5w5nqzba6";
 
-  postConfigure = ''
-    cd $NIX_BUILD_TOP/go/src/$goPackagePath
-  '';
+  src = lib.cleanSource ./.;
 
   # we have no bash at the moment for windows
   makeFlags = stdenv.lib.optional (!stdenv.hostPlatform.isWindows) [
@@ -19,10 +16,7 @@ buildGoPackage rec {
   ];
 
   installPhase = ''
-    mkdir -p $out
-    make install DESTDIR=$bin
-    mkdir -p $bin/share/fish/vendor_conf.d
-    echo "eval ($bin/bin/direnv hook fish)" > $bin/share/fish/vendor_conf.d/direnv.fish
+    make install PREFIX=$out
   '';
 
   meta = with stdenv.lib; {

@@ -233,12 +233,30 @@ const StdLib = "#!/usr/bin/env bash\n" +
 	"  elif [[ -d $path ]]; then\n" +
 	"    path=$path/.env\n" +
 	"  fi\n" +
+	"  watch_file \"$path\"\n" +
 	"  if ! [[ -f $path ]]; then\n" +
 	"    log_error \".env at $path not found\"\n" +
 	"    return 1\n" +
 	"  fi\n" +
 	"  eval \"$(\"$direnv\" dotenv bash \"$@\")\"\n" +
+	"}\n" +
+	"\n" +
+	"# Usage: dotenv_if_exists [<filename>]\n" +
+	"#\n" +
+	"# Loads a \".env\" file into the current environment, but only if it exists.\n" +
+	"#\n" +
+	"dotenv_if_exists() {\n" +
+	"  local path=${1:-}\n" +
+	"  if [[ -z $path ]]; then\n" +
+	"    path=$PWD/.env\n" +
+	"  elif [[ -d $path ]]; then\n" +
+	"    path=$path/.env\n" +
+	"  fi\n" +
 	"  watch_file \"$path\"\n" +
+	"  if ! [[ -f $path ]]; then\n" +
+	"    return\n" +
+	"  fi\n" +
+	"  eval \"$(\"$direnv\" dotenv bash \"$@\")\"\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: user_rel_path <abs_path>\n" +
@@ -365,6 +383,13 @@ const StdLib = "#!/usr/bin/env bash\n" +
 	"#\n" +
 	"watch_file() {\n" +
 	"  eval \"$(\"$direnv\" watch bash \"$@\")\"\n" +
+	"}\n" +
+	"\n" +
+	"# Usage: watch_dir <dir>\n" +
+	"#\n" +
+	"# Adds <dir> to the list of dirs that direnv will recursively watch for changes\n" +
+	"watch_dir() {\n" +
+	"  eval \"$(\"$direnv\" watch-dir bash \"$1\")\"\n" +
 	"}\n" +
 	"\n" +
 	"# Usage: source_up [<filename>]\n" +

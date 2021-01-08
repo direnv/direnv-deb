@@ -230,12 +230,30 @@ dotenv() {
   elif [[ -d $path ]]; then
     path=$path/.env
   fi
+  watch_file "$path"
   if ! [[ -f $path ]]; then
     log_error ".env at $path not found"
     return 1
   fi
   eval "$("$direnv" dotenv bash "$@")"
+}
+
+# Usage: dotenv_if_exists [<filename>]
+#
+# Loads a ".env" file into the current environment, but only if it exists.
+#
+dotenv_if_exists() {
+  local path=${1:-}
+  if [[ -z $path ]]; then
+    path=$PWD/.env
+  elif [[ -d $path ]]; then
+    path=$path/.env
+  fi
   watch_file "$path"
+  if ! [[ -f $path ]]; then
+    return
+  fi
+  eval "$("$direnv" dotenv bash "$@")"
 }
 
 # Usage: user_rel_path <abs_path>
@@ -362,6 +380,13 @@ source_env_if_exists() {
 #
 watch_file() {
   eval "$("$direnv" watch bash "$@")"
+}
+
+# Usage: watch_dir <dir>
+#
+# Adds <dir> to the list of dirs that direnv will recursively watch for changes
+watch_dir() {
+  eval "$("$direnv" watch-dir bash "$1")"
 }
 
 # Usage: source_up [<filename>]
