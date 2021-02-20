@@ -7,7 +7,7 @@ Subject: [PATCH] Respect PREFIX in GNUmakefile
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/GNUmakefile b/GNUmakefile
-index 49634d6..1d2b576 100644
+index 86189a9..df3a418 100644
 --- a/GNUmakefile
 +++ b/GNUmakefile
 @@ -3,9 +3,9 @@

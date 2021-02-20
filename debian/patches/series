@@ -1,2 +1,3 @@
 0001-Respect-PREFIX-in-GNUmakefile.patch
 0005-GNUMakefile-Comment-out-golangci-lint.patch
+0003-test-Fix-errors-for-elvish-test.patch

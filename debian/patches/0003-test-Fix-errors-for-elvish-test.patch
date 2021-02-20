@@ -1,0 +1,43 @@
+From: Punit Agrawal <punit@debian.org>
+Date: Sat, 20 Feb 2021 12:37:52 +0900
+Subject: test: Fix errors for elvish test
+
+In recent versions of elvish the builtin path-dir has been moved to a
+module. Update the test script to use the module to avoid a warning
+about deprecated usage. The move of "path" to the module also seems to
+have updated the key "path" to "name" - reflect this in the test
+script.
+
+Similarly, temporary assignment now requires using the "set"
+keyword. Fix this while at it.
+---
+ test/direnv-test.elv | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/test/direnv-test.elv b/test/direnv-test.elv
+index 141536d..823fa9d 100755
+--- a/test/direnv-test.elv
++++ b/test/direnv-test.elv
+@@ -1,9 +1,11 @@
+ #!/usr/bin/env elvish
+ 
+-E:TEST_DIR = (path-dir (src)[path])
++use path
++
++E:TEST_DIR = (path:dir (src)[name])
+ set-env XDG_CONFIG_HOME $E:TEST_DIR/config
+ set-env XDG_DATA_HOME $E:TEST_DIR/data
+-E:PATH = (path-dir $E:TEST_DIR):$E:PATH
++E:PATH = (path:dir $E:TEST_DIR):$E:PATH
+ 
+ cd $E:TEST_DIR
+ 
+@@ -80,7 +82,7 @@ test-scenario base {
+ 	direnv-eval
+ 	test-eq $E:HELLO "world"
+ 
+-	E:WATCHES=$E:DIRENV_WATCHES
++	set E:WATCHES = $E:DIRENV_WATCHES
+ 
+ 	echo "Reloading (should be no-op)"
+ 	direnv-eval

@@ -12,7 +12,7 @@ direnv and is not required for testing the generated binary.
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/GNUmakefile b/GNUmakefile
-index 1d2b576..fa96fa3 100644
+index df3a418..42500a2 100644
 --- a/GNUmakefile
 +++ b/GNUmakefile
 @@ -130,7 +130,7 @@ test-go:
