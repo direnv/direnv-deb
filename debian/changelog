@@ -1,3 +1,9 @@
+direnv (2.25.2-2) unstable; urgency=medium
+
+  * Update elvish tests (Closes: #982709)
+
+ -- Punit Agrawal <punit@debian.org>  Sun, 21 Feb 2021 12:11:48 +0900
+
 direnv (2.25.2-1) unstable; urgency=medium
 
   * New upstream version 2.25.2
