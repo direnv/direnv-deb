@@ -12,10 +12,10 @@ direnv and is not required for testing the generated binary.
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/GNUmakefile b/GNUmakefile
-index df3a418..42500a2 100644
+index 7ab3516..cbc7884 100644
 --- a/GNUmakefile
 +++ b/GNUmakefile
-@@ -130,7 +130,7 @@ test-go:
+@@ -119,7 +119,7 @@ test-go:
  	$(GO) test -v ./...
  
  test-go-lint:
