@@ -2,7 +2,7 @@ Source: direnv
 Section: utils
 Priority: optional
 Maintainer: Punit Agrawal <punit@debian.org>
-Build-Depends: debhelper (>= 10.0.0),
+Build-Depends: debhelper-compat (= 13),
 	       elvish <!nocheck>,
 	       fish <!nocheck>,
 	       golang-any,
@@ -15,6 +15,7 @@ Standards-Version: 4.6.0
 Homepage: http://direnv.net/
 Vcs-Git: https://github.com/direnv/direnv-deb.git
 Vcs-Browser: https://github.com/direnv/direnv-deb
+Rules-Requires-Root: no
 
 Package: direnv
 Architecture: any
