@@ -36,10 +36,10 @@ a descriptive syntax like `use ruby 1.9.3` to selects the right ruby version
 for the project.
 
 For that regard we are going to use a couple of commands available in the
-[direnv stdlib](/man/direnv-stdlib.1.md) and expand it a bit in the ~/.direnvrc
+[direnv stdlib](/man/direnv-stdlib.1.md) and expand it a bit in the `~/.config/direnv/direnvrc`
 file.
 
-Add this to the ~/.direnvrc file (you have to create it if it doesn't exist):
+Add this to the `~/.config/direnv/direnvrc` file (you have to create it if it doesn't exist):
 
 ```bash
 # Usage: use ruby <version>
@@ -60,7 +60,7 @@ select the right ruby version when you enter the project's folder.
 ## A bit of explanation
 
 The last part probably needs a bit more explanation. We make use of a couple
-of commands that are part of the [stdlib](/stdlib.html) which is availabe in
+of commands that are part of the [stdlib](/man/direnv-stdlib.1.md) which is availabe in
 the execution context of an envrc.
 
 `use` is a command dispatch that's just there to build the

@@ -30,14 +30,14 @@ __env_strictness() {
   local mode tmpfile old_shell_options
   local -i res
 
-  tmpfile=$(mktemp)
+  tmpfile="$(mktemp)"
   res=0
   mode="$1"
   shift
 
   set +o | grep 'pipefail\|nounset\|errexit' > "$tmpfile"
   old_shell_options=$(< "$tmpfile")
-  rm -f tmpfile
+  rm -f "$tmpfile"
 
   case "$mode" in
   strict)
@@ -135,8 +135,9 @@ direnv_layout_dir() {
 log_status() {
   if [[ -n $DIRENV_LOG_FORMAT ]]; then
     local msg=$*
+    local color_normal="\e[m"
     # shellcheck disable=SC2059,SC1117
-    printf "${DIRENV_LOG_FORMAT}\n" "$msg" >&2
+    printf "${color_normal}${DIRENV_LOG_FORMAT}\n" "$msg" >&2
   fi
 }
 
@@ -152,12 +153,10 @@ log_status() {
 #    log_error "Unable to find specified directory!"
 
 log_error() {
-  local color_normal
-  local color_error
-  color_normal=$(tput sgr0)
-  color_error=$(tput setaf 1)
   if [[ -n $DIRENV_LOG_FORMAT ]]; then
     local msg=$*
+    local color_normal="\e[m"
+    local color_error="\e[38;5;1m"
     # shellcheck disable=SC2059,SC1117
     printf "${color_error}${DIRENV_LOG_FORMAT}${color_normal}\n" "$msg" >&2
   fi
@@ -230,12 +229,30 @@ dotenv() {
   elif [[ -d $path ]]; then
     path=$path/.env
   fi
+  watch_file "$path"
   if ! [[ -f $path ]]; then
     log_error ".env at $path not found"
     return 1
   fi
   eval "$("$direnv" dotenv bash "$@")"
+}
+
+# Usage: dotenv_if_exists [<filename>]
+#
+# Loads a ".env" file into the current environment, but only if it exists.
+#
+dotenv_if_exists() {
+  local path=${1:-}
+  if [[ -z $path ]]; then
+    path=$PWD/.env
+  elif [[ -d $path ]]; then
+    path=$path/.env
+  fi
   watch_file "$path"
+  if ! [[ -f $path ]]; then
+    return
+  fi
+  eval "$("$direnv" dotenv bash "$@")"
 }
 
 # Usage: user_rel_path <abs_path>
@@ -328,7 +345,7 @@ source_env() {
   pushd "$(pwd 2>/dev/null)" >/dev/null || return 1
   pushd "$rcpath_dir" >/dev/null || return 1
   if [[ -f ./$rcpath_base ]]; then
-    log_status "loading $rcfile"
+    log_status "loading $(user_rel_path "$(expand_path "$rcpath")")"
     # shellcheck disable=SC1090
     . "./$rcpath_base"
   else
@@ -346,12 +363,39 @@ source_env() {
 #       not a directory.
 #
 # Example:
-# 
+#
 #    source_env_if_exists .envrc.private
 #
 source_env_if_exists() {
   watch_file "$1"
   if [[ -f "$1" ]]; then source_env "$1"; fi
+}
+
+# Usage: env_vars_required <varname> [<varname> ...]
+#
+# Logs error for every variable not present in the environment or having an empty value.  
+# Typically this is used in combination with source_env and source_env_if_exists.
+#
+# Example:
+#
+#     # expect .envrc.private to provide tokens
+#     source_env .envrc.private
+#     # check presence of tokens
+#     env_vars_required GITHUB_TOKEN OTHER_TOKEN
+#
+env_vars_required() {
+  local environment
+  local -i ret
+  environment=$(env)
+  ret=0
+
+  for var in "$@"; do
+    if [[ "$environment" != *"$var="* || -z ${!var:-}  ]]; then
+      log_error "env var $var is required but missing/empty"
+      ret=1
+    fi
+  done
+  return "$ret"
 }
 
 # Usage: watch_file <filename> [<filename> ...]
@@ -364,17 +408,50 @@ watch_file() {
   eval "$("$direnv" watch bash "$@")"
 }
 
+# Usage: watch_dir <dir>
+#
+# Adds <dir> to the list of dirs that direnv will recursively watch for changes
+watch_dir() {
+  eval "$("$direnv" watch-dir bash "$1")"
+}
+
+# Usage: _source_up [<filename>] [true|false]
+#
+# Private helper function for source_up and source_up_if_exists. The second
+# parameter determines if it's an error for the file we're searching for to
+# not exist.
+_source_up() {
+  local envrc file=${1:-.envrc}
+  local ok_if_not_exist=${2}
+  envrc=$(cd .. && (find_up "$file" || true))
+  if [[ -n $envrc ]]; then
+    source_env "$envrc"
+  elif $ok_if_not_exist; then
+    return 0
+  else
+    log_error "No ancestor $file found"
+    return 1
+  fi
+}
+
 # Usage: source_up [<filename>]
 #
-# Loads another ".envrc" if found with the find_up command.
+# Loads another ".envrc" if found with the find_up command. Returns 1 if no
+# file is found.
 #
 # NOTE: the other ".envrc" is not checked by the security framework.
 source_up() {
-  local dir file=${1:-.envrc}
-  dir=$(cd .. && find_up "$file")
-  if [[ -n $dir ]]; then
-    source_env "$dir"
-  fi
+  _source_up "${1:-}" false
+}
+
+# Usage: source_up_if_exists [<filename>]
+#
+# Loads another ".envrc" if found with the find_up command. If one is not
+# found, nothing happens.
+#
+# NOTE: the other ".envrc" is not checked by the security framework.
+source_up_if_exists() {
+  _source_up "${1:-}" true
 }
 
 # Usage: fetchurl <url> [<integrity-hash>]
@@ -712,9 +789,10 @@ layout_php() {
 
 # Usage: layout python <python_exe>
 #
-# Creates and loads a virtual environment under
+# Creates and loads a virtual environment.
+# You can specify the path of the virtual environment through VIRTUAL_ENV
+# environment variable, otherwise it will be set to
 # "$direnv_layout_dir/python-$python_version".
-# This forces the installation of any egg into the project's sub-folder.
 # For python older then 3.3 this requires virtualenv to be installed.
 #
 # It's possible to specify the python executable if you want to use different
@@ -737,7 +815,13 @@ layout_python() {
       return 1
     fi
 
-    VIRTUAL_ENV=$(direnv_layout_dir)/python-$python_version
+    if [[ -n "${VIRTUAL_ENV:-}" ]]; then
+      local REPLY
+      realpath.absolute "$VIRTUAL_ENV"
+      VIRTUAL_ENV=$REPLY
+    else
+      VIRTUAL_ENV=$(direnv_layout_dir)/python-$python_version
+    fi
     case $ve in
       "venv")
         if [[ ! -d $VIRTUAL_ENV ]]; then
@@ -804,7 +888,19 @@ layout_anaconda() {
     env_loc="$env_name_or_prefix"
   else
     # "foo" name
-    env_name="$env_name_or_prefix"
+    # if no name was passed, try to parse it from local environment.yml
+    if [[ -n "$env_name_or_prefix" ]]; then
+      env_name="$env_name_or_prefix"
+    elif [[ -e environment.yml ]]; then
+      env_name_grep_match="$(grep -- '^name:' environment.yml)"
+      env_name="${env_name_grep_match/#name:*([[:space:]])}"
+    fi
+
+    if [[ -z "$env_name" ]]; then
+      log_error "Could not determine conda env name (set in environment.yml or pass explicitly)"
+      return 1
+    fi
+
     env_loc=$("$conda" env list | grep -- '^'"$env_name"'\s')
     env_loc="${env_loc##* }"
   fi
@@ -857,7 +953,9 @@ layout_pipenv() {
 #
 #    layout pyenv 3.6.7
 #
-# Uses pyenv and layout_python to create and load a virtual environment under
+# Uses pyenv and layout_python to create and load a virtual environment.
+# You can specify the path of the virtual environment through VIRTUAL_ENV
+# environment variable, otherwise it will be set to
 # "$direnv_layout_dir/python-$python_version".
 #
 layout_pyenv() {
@@ -995,31 +1093,33 @@ use_rbenv() {
 rvm() {
   unset rvm
   if [[ -n ${rvm_scripts_path:-} ]]; then
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1090,SC1091
     source "${rvm_scripts_path}/rvm"
   elif [[ -n ${rvm_path:-} ]]; then
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1090,SC1091
     source "${rvm_path}/scripts/rvm"
   else
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1090,SC1091
     source "$HOME/.rvm/scripts/rvm"
   fi
   rvm "$@"
 }
 
-# Usage: use node
-# Loads NodeJS version from a `.node-version` or `.nvmrc` file.
-#
 # Usage: use node [<version>]
-# Loads specified NodeJS version.
 #
-# If you specify a partial NodeJS version (i.e. `4.2`), a fuzzy match
+# Loads the specified NodeJS version into the environment.
+#
+# If a partial NodeJS version is passed (i.e. `4.2`), a fuzzy match
 # is performed and the highest matching version installed is selected.
+#
+# If no version is passed, it will look at the '.nvmrc' or '.node-version'
+# files in the current directory if they exist.
 #
 # Environment Variables:
 #
 # - $NODE_VERSIONS (required)
-#   You must specify a path to your installed NodeJS versions via the `$NODE_VERSIONS` variable.
+#   Points to a folder that contains all the installed Node versions. That
+#   folder must exist.
 #
 # - $NODE_VERSION_PREFIX (optional) [default="node-v"]
 #   Overrides the default version prefix.
@@ -1080,7 +1180,7 @@ use_node() {
 #
 #    use nodenv 15.2.1
 #
-# Uses nodenv, use_node and layout_node to add the chosen node version and 
+# Uses nodenv, use_node and layout_node to add the chosen node version and
 # "$PWD/node_modules/.bin" to the PATH
 #
 use_nodenv() {
@@ -1112,6 +1212,23 @@ use_nix() {
   if [[ $# == 0 ]]; then
     watch_file default.nix shell.nix
   fi
+}
+
+# Usage: use_flake [<installable>]
+#
+# Load the build environment of a derivation similar to `nix develop`.
+#
+# By default it will load the current folder flake.nix devShell attribute. Or
+# pass an "installable" like "nixpkgs#hello" to load all the build
+# dependencies of the hello package from the latest nixpkgs.
+#
+# Note that the flakes feature is hidden behind an experimental flag, which
+# you will have to enable on your own. Flakes is not considered stable yet.
+use_flake() {
+  watch_file flake.nix
+  watch_file flake.lock
+  mkdir -p "$(direnv_layout_dir)"
+  eval "$(nix print-dev-env --profile "$(direnv_layout_dir)/flake-profile" "$@")"
 }
 
 # Usage: use_guix [...]
@@ -1147,23 +1264,32 @@ direnv_version() {
   "$direnv" version "$@"
 }
 
-# Usage: on_git_branch [<branch_name>]
+# Usage: on_git_branch [<branch_name>] OR on_git_branch -r [<regexp>]
 #
 # Returns 0 if within a git repository with given `branch_name`. If no branch
 # name is provided, then returns 0 when within _any_ branch. Requires the git
 # command to be installed. Returns 1 otherwise.
 #
-# When a branch is specified, then `.git/HEAD` is watched so that
+# When the `-r` flag is specified, then the second argument is interpreted as a
+# regexp pattern for matching a branch name.
+#
+# Regardless, when a branch is specified, then `.git/HEAD` is watched so that
 # entering/exiting a branch triggers a reload.
 #
 # Example (.envrc):
+#
+#    if on_git_branch; then
+#      echo "Thanks for contributing to a GitHub project!"
+#    fi
 #
 #    if on_git_branch child_changes; then
 #      export MERGE_BASE_BRANCH=parent_changes
 #    fi
 #
-#    if on_git_branch; then
-#      echo "Thanks for contributing to a GitHub project!"
+#    if on_git_branch -r '.*py2'; then
+#      layout python2
+#    else
+#      layout python
 #    fi
 on_git_branch() {
   local git_dir
@@ -1175,9 +1301,18 @@ on_git_branch() {
     return 1
   elif [ -z "$1" ]; then
     return 0
+  elif [[ "$1" = "-r"  &&  -z "$2" ]]; then
+    log_error "missing regexp pattern after \`-r\` flag"
+    return 1
   fi
   watch_file "$git_dir/HEAD"
-  [ "$(git branch --show-current)" = "$1" ]
+  local git_branch
+  git_branch=$(git branch --show-current)
+  if [ "$1" = '-r' ]; then
+    [[ "$git_branch" =~ $2 ]]
+  else
+    [ "$1" = "$git_branch" ]
+  fi
 }
 
 # Usage: __main__ <cmd> [...<args>]
@@ -1204,10 +1339,10 @@ __main__() {
 
   # load the global ~/.direnvrc if present
   if [[ -f $direnv_config_dir/direnvrc ]]; then
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1090,SC1091
     source "$direnv_config_dir/direnvrc" >&2
   elif [[ -f $HOME/.direnvrc ]]; then
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1090,SC1091
     source "$HOME/.direnvrc" >&2
   fi
 

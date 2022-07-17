@@ -14,7 +14,7 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-Outputs a bash script called the *stdlib*. The following commands are included in that script and loaded in the context of an `.envrc`. In addition, it also loads the file in `~/.direnvrc` if it exists.
+Outputs a bash script called the *stdlib*. The following commands are included in that script and loaded in the context of an `.envrc`. In addition, it also loads the file in `~/.config/direnv/direnvrc` if it exists.
 
 STDLIB
 ------
@@ -41,7 +41,11 @@ Example:
 
 ### `dotenv [<dotenv_path>]`
 
-Loads a ".env" file into the current environment
+Loads a ".env" file into the current environment.
+
+### `dotenv_if_exists [<dotenv_path>]`
+
+Loads a ".env" file into the current environment, but only if it exists.
 
 ### `user_rel_path <abs_path>`
 
@@ -85,6 +89,19 @@ NOTE: contrary to `source_env`, this only works when passing a path to a file,
 Example:
 
     source_env_if_exists .envrc.private
+
+### `env_vars_required <varname> [<varname> ...]`
+
+Logs error for every variable not present in the environment or having an empty value.  
+Typically this is used in combination with source_env and source_env_if_exists.
+
+Example:
+
+    # expect .envrc.private to provide tokens
+    source_env .envrc.private
+    # check presence of tokens
+    env_vars_required GITHUB_TOKEN OTHER_TOKEN
+
 
 ### `source_up [<filename>]`
 
@@ -224,6 +241,12 @@ Adds "$PWD/vendor/bin" to the PATH environment variable.
 
 Setup environment variables required by perl's local::lib See http://search.cpan.org/dist/local-lib/lib/local/lib.pm for more details.
 
+### `layout pipenv`
+
+Similar to `layout python`, but uses Pipenv to build a virtualenv from the `Pipfile` located in the same directory. The path can be overridden by the `PIPENV_PIPFILE` environment variable.
+
+Note that unlike invoking Pipenv manually, this does not load environment variables from a `.env` file automatically. You may want to add `dotenv .env` to copy that behavior.
+
 ### `layout python [<python_exe>]`
 
 Creates and loads a virtualenv environment under `$PWD/.direnv/python-$python_version`. This forces the installation of any egg into the project's sub-folder.
@@ -278,6 +301,17 @@ If you have a `default.nix` or `shell.nix` these will be used by default, but yo
 
 See http://nixos.org/nix/manual/#sec-nix-shell
 
+### `use flake [<installable>]`
+
+Load the build environment of a derivation similar to `nix develop`.
+
+By default it will load the current folder flake.nix devShell attribute. Or
+pass an "installable" like "nixpkgs#hello" to load all the build dependencies
+of the hello package from the latest nixpkgs.
+
+Note that the flakes feature is hidden behind an experimental flag, which you
+will have to enable on your own. Flakes is not considered stable yet.
+
 ### `use guix [...]`
 
 Load environment variables from `guix environment`.
@@ -292,27 +326,22 @@ Should work just like in the shell if you have rvm installed.
 
 ### `use node [<version>]`:
 
-Loads NodeJS version from a `.node-version` or `.nvmrc` file.
+Loads the specified NodeJS version into the environment.
 
-If you specify a partial NodeJS version (i.e. `4.2`), a fuzzy match is performed and the highest matching version installed is selected.
+If a partial NodeJS version is passed (i.e. `4.2`), a fuzzy match
+is performed and the highest matching version installed is selected.
 
-Example (.envrc):
+If no version is passed, it will look at the '.nvmrc' or '.node-version'
+files in the current directory if they exist.
 
-    set -e
-    use node
+Environment Variables:
 
-Example (.node-version):
+- $NODE_VERSIONS (required)
+  Points to a folder that contains all the installed Node versions. That
+  folder must exist.
 
-    4.2
-
-### `use node <version>`
-
-Loads specified NodeJS version.
-
-Example (.envrc):
-
-    set -e
-    use node 4.2.2
+- $NODE_VERSION_PREFIX (optional) [default="node-v"]
+  Overrides the default version prefix.
 
 ### `use vim [<vimrc_file>]`
 

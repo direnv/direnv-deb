@@ -3,9 +3,10 @@
 ############################################################################
 
 # Set this to change the target installation path
-DESTDIR ?= /usr/local
-BINDIR   = ${DESTDIR}/bin
-MANDIR   = ${DESTDIR}/share/man
+PREFIX   = /usr/local
+BINDIR   = ${PREFIX}/bin
+SHAREDIR = ${PREFIX}/share
+MANDIR   = ${SHAREDIR}/man
 DISTDIR ?= dist
 
 # filename of the executable
@@ -13,9 +14,6 @@ exe = direnv$(shell go env GOEXE)
 
 # Override the go executable
 GO = go
-
-# Change if you want to fork direnv
-PACKAGE = github.com/direnv/direnv
 
 # BASH_PATH can also be passed to hard-code the path to bash at build time
 
@@ -29,7 +27,6 @@ SHELL = bash
 all: build man
 
 export GO111MODULE=on
-export GOFLAGS=-mod=vendor
 
 ############################################################################
 # Build
@@ -60,17 +57,8 @@ ifneq ($(strip $(GO_LDFLAGS)),)
 	GO_BUILD_FLAGS = -ldflags '$(GO_LDFLAGS)'
 endif
 
-direnv: stdlib.go *.go
+direnv: *.go
 	$(GO) build $(GO_BUILD_FLAGS) -o $(exe)
-
-stdlib.go: stdlib.sh
-	cat $< | ./script/str2go main StdLib $< > $@
-
-version.go: version.txt
-	echo package main > $@
-	echo >> $@
-	echo "// Version is direnv's version"
-	echo 'const Version = "$(shell cat $<)"' >> $@
 
 ############################################################################
 # Format all the things
@@ -96,7 +84,7 @@ roffs = $(man_md:.md=)
 man: $(roffs)
 
 %.1: %.1.md
-	@command -v go-md2man >/dev/null || (echo "Could not generate man page because go-md2man is missing. Run: go get -u github.com/cpuguy83/go-md2man"; false)
+	@command -v go-md2man >/dev/null || (echo "Could not generate man page because go-md2man is missing. Run: go get -u github.com/cpuguy83/go-md2man/v2"; false)
 	go-md2man -in $< -out $@
 
 ############################################################################
@@ -122,6 +110,7 @@ test: build $(tests)
 
 test-shellcheck:
 	shellcheck stdlib.sh
+	shellcheck ./test/stdlib.bash
 
 test-stdlib: build
 	./test/stdlib.bash
@@ -154,14 +143,39 @@ test-zsh:
 
 .PHONY: install
 install: all
-	install -d $(BINDIR)
-	install $(exe) $(BINDIR)
-	install -d $(MANDIR)/man1
-	cp -R man/*.1 $(MANDIR)/man1
+	install -d $(DESTDIR)$(BINDIR)
+	install $(exe) $(DESTDIR)$(BINDIR)
+	install -d $(DESTDIR)$(MANDIR)/man1
+	cp -R man/*.1 $(DESTDIR)$(MANDIR)/man1
+	install -d $(DESTDIR)$(SHAREDIR)/fish/vendor_conf.d
+	echo "$(BINDIR)/direnv hook fish | source" > $(DESTDIR)$(SHAREDIR)/fish/vendor_conf.d/direnv.fish
 
 .PHONY: dist
 dist:
 	@command -v gox >/dev/null || (echo "Could not generate dist because gox is missing. Run: go get -u github.com/mitchellh/gox"; false)
-	CGO_ENABLED=0 gox -osarch "linux/arm64" -osarch "linux/ppc64" -output "$(DISTDIR)/direnv.{{.OS}}-{{.Arch}}"
-	CGO_ENABLED=0 gox -output "$(DISTDIR)/direnv.{{.OS}}-{{.Arch}}"
-
+	CGO_ENABLED=0 GOFLAGS="-trimpath" \
+		gox -output "$(DISTDIR)/direnv.{{.OS}}-{{.Arch}}" \
+		-osarch darwin/amd64 \
+		-osarch darwin/arm64 \
+		-osarch freebsd/386 \
+		-osarch freebsd/amd64 \
+		-osarch freebsd/arm \
+		-osarch linux/386 \
+		-osarch linux/amd64 \
+		-osarch linux/arm \
+		-osarch linux/arm64 \
+		-osarch linux/mips \
+		-osarch linux/mips64 \
+		-osarch linux/mips64le \
+		-osarch linux/mipsle \
+		-osarch linux/ppc64 \
+		-osarch linux/ppc64le \
+		-osarch linux/s390x \
+		-osarch netbsd/386 \
+		-osarch netbsd/amd64 \
+		-osarch netbsd/arm \
+		-osarch openbsd/386 \
+		-osarch openbsd/amd64 \
+		-osarch windows/386 \
+		-osarch windows/amd64 \
+		&& true

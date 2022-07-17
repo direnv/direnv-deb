@@ -1,4 +1,146 @@
 
+2.32.1 / 2022-06-21
+==================
+
+  * feat: Support custom VIRTUAL_ENV for layout_python (#876)
+  * fix: vendor go-dotenv (#955)
+
+2.32.0 / 2022-06-13
+==================
+
+  * feat: Add gha shell for GitHub Actions (#910)
+  * feat: Enable ppc64le builds (#947)
+  * feat: allow conda environment names to be detected from environment.yml (#909)
+  * feat: source_up_if_exists: A strict_env compatible version of source_up (#921)
+  * feat: Expand ~/ in whitelist paths (#931)
+  * feat: Add "block" and "revoke" as aliases of the "deny" command (#935)
+  * feat: Add "permit" and "grant" as aliases of the "allow" command (#935)
+  * fix: update go-dotenv
+  * fix: fetchurl: store files as hex (#930)
+  * fix: fetchurl: only store 200 responses (#944)
+  * fix: Ensure status log messages are printed with normal color (#884)
+  * fix: Clarify handling of .env files (#941)
+  * fix: Update shell_elvish.go (#896)
+  * fix: stdlib.sh: remove dependency on tput (#932)
+  * fix: Use setenv in vim to allow non alphanumeric vars (#901)
+  * fix: install.sh: add information about bin_path (#920)
+  * fix: Treat `mingw*` as windows (direnv/direnv#918) (#919)
+  * fix: man: clarify paths (#929)
+  * fix: installation.md: Fix Fedora package link (#915)
+  * Merge pull request #874 from direnv/refactor
+  * chore: rc: stop using --noprofile --norc
+  * chore: rc: prepare stdin earlier
+  * chore: rc: install interrupt handler earlier
+  * chore: stdlib: factor out stdlib preparation
+  * chore: fix CI
+  * chore: source_env: show full path (#870)
+  * chore: Sort shells in DetectShell
+  * chore: Enable codeql action (#938)
+  * chore: Set permissions for GitHub actions (#937)
+  * go: bump golang.org/x/sys for linux/loong64 support (#946)
+  * build(deps): bump actions/checkout from 2.4.0 to 3.0.0 (#922)
+  * build(deps): bump actions/checkout from 3.0.0 to 3.0.1 (#933)
+  * build(deps): bump actions/checkout from 3.0.1 to 3.0.2 (#936)
+  * build(deps): bump actions/setup-go from 2.1.5 to 3.0.0 (#923)
+  * build(deps): bump actions/setup-go from 3.0.0 to 3.1.0 (#943)
+  * build(deps): bump actions/setup-go from 3.1.0 to 3.2.0 (#950)
+  * build(deps): bump cachix/install-nix-action from 16 to 17 (#925)
+  * build(deps): bump github.com/BurntSushi/toml from 0.4.1 to 1.1.0 (#924)
+
+2.31.0 / 2022-03-26
+==================
+
+  * Don't load .env files by default (#911)
+  * doc: `~/.config/direnv/direnvrc` is the default
+  * doc: fix the broken link to arch linux (#892)
+  * Re-add accidentally deleted comment line (#881)
+  * fix version test
+
+2.30.3 / 2022-01-05
+==================
+
+  * Allow skipping `.env` autoload (#878)
+  * stdlib: add `env_vars_required` (#872) (#872)
+  * Test whether version.txt contains semantic version (#871)
+
+2.30.2 / 2021-12-28
+==================
+
+  * FIX: version: trim surrounding spaces (#869)
+  * build(deps): bump actions/setup-go from 2.1.4 to 2.1.5 (#866)
+  * move most code under internal/cmd (#865)
+
+2.30.1 / 2021-12-24
+==================
+
+  * FIX: ignore .envrc and .env if they are not files (#864)
+
+2.30.0 / 2021-12-23
+==================
+
+  * Add automatic `.env` load (#845)
+  * Resolve symlinks during `direnv deny` (#851)
+  * update installer for Apple Silicon (#849)
+  * stdlib: use_flake handle no layout dir (#861)
+  * embed stdlib.sh (#782)
+  * embed version.txt
+  * go mod update
+  * make dist: remove references to Go
+
+2.29.0 / 2021-11-28
+==================
+
+  * stdlib: add use_flake function (#847)
+  * docs(direnv.toml) Add config.toml clarification (#831)
+  * docs(install): fix macos links (#841)
+  * Corrects stdlib link in Ruby docs (#837)
+  * stdlib.sh: Fix removal of temp file (#830)
+  * install.sh: add aarch64 support
+  * Updated conditional for zsh hook to be more forgiving (#808)
+  * Add -r flag for matching Git branches with a regexp (#800)
+  * Add docs about pipenv (#797)
+  * Enable syntax hilights to the quick demo code (#752)
+  * Fixed extra quotes for lower alpha characters (#783)
+  * Remove noisy warning about PS1 again (#781)
+
+2.28.0 / 2021-03-12
+==================
+
+  * Merge pull request #779 from wingrunr21/go_1_16
+  * Build for darwin/arm64. Resolves #738
+  * Update to go 1.16
+  * test: Fix errors for elvish test (#767)
+  * tcsh: fix variable escaping (#778)
+  * Change DESTDIR to PREFIX in development.md (#774)
+  * go: use the /v2 prefix (#765)
+  * Relax README's recommendation for nix-direnv (#763)
+  * man/direnv.1.md: add FILES section (fix #758) (#759)
+  * Add/update fish tests (#754)
+  * build(deps): bump golang.org/x/mod from 0.4.0 to 0.4.1 (#749)
+  * Fix typo "avaible" in install.sh (#750)
+  * docs: improve the use_node documentation
+
+2.27.0 / 2021-01-01
+==================
+
+  * fixed fish shell hook to work with eval (#743)
+  * dist: remove darwin/386
+  * nix: update to nixpkgs@nixos-20.09
+  * packaging: stop vendoring the Go code (#739)
+  * packaging: change packaging. DESTDIR -> PREFIX, fish hook (#741)
+
+2.26.0 / 2020-12-27
+==================
+
+  * updated fish hook support issue (#732)
+  * ci: add basic windows CI (#737)
+  * test: fix shellcheck usage in ./test/stdlib.bash
+  * test: fix use_julia test for NixOS
+  * remove dead code: rootDir
+  * fix: create temp dir in current working dir for one test (#735)
+  * Add `dotenv_if_exists` (#734)
+  * stdlib: add watch_dir command (#697)
+
 2.25.2 / 2020-12-12
 ==================
 

@@ -10,6 +10,7 @@ setenv XDG_DATA_HOME $TEST_DIR/data
 setenv DIRENV_CONFIG $PWD
 unsetenv DIRENV_BASH
 unsetenv DIRENV_DIR
+unsetenv DIRENV_FILE
 unsetenv DIRENV_MTIME
 unsetenv DIRENV_WATCHES
 unsetenv DIRENV_DIFF
@@ -117,6 +118,14 @@ cd $TEST_DIR/scenarios/"empty-var-unset"
   setenv FOO ""
   direnv_eval
   test "$?FOO" -eq '0'
+  unsetenv FOO
+cd $TEST_DIR ; direnv_eval
+
+cd $TEST_DIR/scenarios/"parenthesis"
+  direnv allow
+  echo "Testing parenthesis"
+  direnv_eval
+  test "$FOO" = "aaa(bbb)ccc"
   unsetenv FOO
 cd $TEST_DIR ; direnv_eval
 

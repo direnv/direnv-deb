@@ -1,25 +1,28 @@
 package main
 
 import (
+	_ "embed"
+	"github.com/direnv/direnv/v2/internal/cmd"
 	"os"
+	"strings"
 )
 
-// Configured at compile time
-var bashPath string
+var (
+	// Configured at compile time
+	bashPath string
+	//go:embed stdlib.sh
+	stdlib string
+	//go:embed version.txt
+	version string
+)
 
 func main() {
-	// We drop $PWD from caller since it can include symlinks, which will
-	// break relative path access when finding .envrc in a parent.
-	_ = os.Unsetenv("PWD")
-
-	var env = GetEnv()
-	var args = os.Args
-
-	setupLogging(env)
-
-	err := CommandsDispatch(env, args)
+	var (
+		env  = cmd.GetEnv()
+		args = os.Args
+	)
+	err := cmd.Main(env, args, bashPath, stdlib, strings.TrimSpace(version))
 	if err != nil {
-		logError("error %v", err)
 		os.Exit(1)
 	}
 }
