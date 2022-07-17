@@ -1,3 +1,21 @@
+direnv (2.32.1-1) unstable; urgency=medium
+
+  * debian/watch: Fix the matching regular expression
+  * Update standards version to 4.6.0
+  * debian: Update list of manpages to install
+  * debian/control: Annotate test dependencies with nocheck profile
+  * debian/control: Bump debhelper-compat to 13
+  * debian/rules: Migrate to using dh-golang
+  * New upstream version 2.32.1 (Closes: #997509)
+  * debian/patches: Refresh patches for new upstream version 2.32.1
+  * debian: manpages: Drop direnv-toml manpage
+  * debian/control: Add build dependencies due to devendoring
+  * debian/rules: Make artifacts available during build
+  * debian/rules: Re-enable tests
+  * debian/control: Drop go-md2man dependency
+
+ -- Punit Agrawal <punit@debian.org>  Mon, 18 Jul 2022 00:09:09 +0100
+
 direnv (2.25.2-2) unstable; urgency=medium
 
   * Update elvish tests (Closes: #982709)
