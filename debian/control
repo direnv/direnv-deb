@@ -2,9 +2,15 @@ Source: direnv
 Section: utils
 Priority: optional
 Maintainer: Punit Agrawal <punit@debian.org>
-Build-Depends: debhelper (>= 10.0.0), elvish, fish,
-	       golang-any, go-md2man,
-	       ruby, shellcheck, tcsh, zsh
+Build-Depends: debhelper (>= 10.0.0),
+	       elvish <!nocheck>,
+	       fish <!nocheck>,
+	       golang-any,
+	       go-md2man,
+	       ruby <!nocheck>,
+	       shellcheck <!nocheck>,
+	       tcsh <!nocheck>,
+	       zsh <!nocheck>
 Standards-Version: 4.6.0
 Homepage: http://direnv.net/
 Vcs-Git: https://github.com/direnv/direnv-deb.git
