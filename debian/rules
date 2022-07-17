@@ -3,20 +3,13 @@
 
 # Uncomment this to turn on verbose mode.
 export DH_VERBOSE=1
-
-export GOCACHE=$(CURDIR)/.cache
+export DH_GOLANG_EXCLUDES := script
 
 %:
-	dh $@
-
-override_dh_auto_build:
-	ln -s vendor src
-	dh_auto_build
-	make man
+	dh $@ --builddirectory=_build --buildsystem=golang --with=golang
 
 override_dh_auto_test:
-	HOME=$(curdir)/tmp dh_auto_test --no-parallel
 
-override_dh_auto_clean:
-	dh_auto_clean
-	rm -f man/*.1 src
+
+override_dh_auto_install:
+	dh_auto_install -- --no-source

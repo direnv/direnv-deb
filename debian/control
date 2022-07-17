@@ -3,6 +3,7 @@ Section: utils
 Priority: optional
 Maintainer: Punit Agrawal <punit@debian.org>
 Build-Depends: debhelper-compat (= 13),
+	       dh-golang,
 	       elvish <!nocheck>,
 	       fish <!nocheck>,
 	       golang-any,
@@ -16,6 +17,7 @@ Homepage: http://direnv.net/
 Vcs-Git: https://github.com/direnv/direnv-deb.git
 Vcs-Browser: https://github.com/direnv/direnv-deb
 Rules-Requires-Root: no
+XS-Go-Import-Path: github.com/direnv/direnv
 
 Package: direnv
 Architecture: any
