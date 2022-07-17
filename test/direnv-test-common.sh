@@ -18,6 +18,7 @@ export PATH
 export DIRENV_CONFIG=$PWD
 unset DIRENV_BASH
 unset DIRENV_DIR
+unset DIRENV_FILE
 unset DIRENV_MTIME
 unset DIRENV_WATCHES
 unset DIRENV_DIFF
@@ -46,6 +47,7 @@ test_start() {
 }
 
 test_stop() {
+  rm -f "${XDG_CONFIG_HOME}/direnv/direnv.toml"
   cd /
   direnv_eval
 }
@@ -92,6 +94,8 @@ test_start base
   direnv_eval
   echo "${HELLO}"
   test -z "${HELLO}"
+
+  unset WATCHES
 test_stop
 
 test_start inherit
@@ -182,6 +186,15 @@ test_start "symlink-changed"
   test_eq "${STATE}" "B"
 test_stop
 
+test_start "symlink-dir"
+  # we can allow and deny the target
+  direnv allow foo
+  direnv deny foo
+  # we can allow and deny the symlink
+  direnv allow bar
+  direnv deny bar
+test_stop
+
 test_start "utf-8"
   direnv_eval
   test_eq "${UTFSTUFF}" "♀♂"
@@ -199,6 +212,72 @@ test_start "failure"
 
   test_neq "${DIRENV_DIFF:-}" ""
   test_neq "${DIRENV_WATCHES:-}" ""
+test_stop
+
+test_start "watch-dir"
+    echo "No watches by default"
+    test_eq "${DIRENV_WATCHES}" "${WATCHES}"
+
+    direnv_eval
+
+    if ! direnv show_dump "${DIRENV_WATCHES}" | grep -q "testfile"; then
+        echo "FAILED: testfile not added to DIRENV_WATCHES"
+        exit 1
+    fi
+
+    echo "After eval, watches have changed"
+    test_neq "${DIRENV_WATCHES}" "${WATCHES}"
+test_stop
+
+test_start "load-envrc-before-env"
+  direnv_eval
+  test_eq "${HELLO}" "bar"
+test_stop
+
+test_start "load-env"
+  echo "[global]
+load_dotenv = true" > "${XDG_CONFIG_HOME}/direnv/direnv.toml"
+  direnv allow
+  direnv_eval
+  test_eq "${HELLO}" "world"
+test_stop
+
+test_start "skip-env"
+  direnv_eval
+  test -z "${SKIPPED}"
+test_stop
+
+if has python; then
+  test_start "python-layout"
+    rm -rf .direnv
+
+    direnv_eval
+    test -n "${VIRTUAL_ENV:-}"
+
+    if [[ ":$PATH:" != *":${VIRTUAL_ENV}/bin:"* ]]; then
+      echo "FAILED: VIRTUAL_ENV/bin not added to PATH"
+      exit 1
+    fi
+  test_stop
+
+  test_start "python-custom-virtual-env"
+    direnv_eval
+    test "${VIRTUAL_ENV:-}" -ef ./foo
+
+    if [[ ":$PATH:" != *":${PWD}/foo/bin:"* ]]; then
+      echo "FAILED: VIRTUAL_ENV/bin not added to PATH"
+      exit 1
+    fi
+  test_stop
+fi
+
+test_start "aliases"
+  direnv deny
+  # check that allow/deny aliases work
+  direnv permit && direnv_eval && test -n "${HELLO}"
+  direnv block  && direnv_eval && test -z "${HELLO}"
+  direnv grant  && direnv_eval && test -n "${HELLO}"
+  direnv revoke && direnv_eval && test -z "${HELLO}"
 test_stop
 
 # Context: foo/bar is a symlink to ../baz. foo/ contains and .envrc file

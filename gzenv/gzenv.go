@@ -17,7 +17,7 @@ func Marshal(obj interface{}) string {
 	jsonData, err := json.Marshal(obj)
 
 	if err != nil {
-		panic(fmt.Errorf("marshal(): %v", err))
+		panic(fmt.Errorf("marshal(): %w", err))
 	}
 
 	zlibData := bytes.NewBuffer([]byte{})
@@ -37,25 +37,27 @@ func Unmarshal(gzenv string, obj interface{}) error {
 
 	data, err := base64.URLEncoding.DecodeString(gzenv)
 	if err != nil {
-		return fmt.Errorf("unmarshal() base64 decoding: %v", err)
+		return fmt.Errorf("unmarshal() base64 decoding: %w", err)
 	}
 
 	zlibReader := bytes.NewReader(data)
 	w, err := zlib.NewReader(zlibReader)
 	if err != nil {
-		return fmt.Errorf("unmarshal() zlib opening: %v", err)
+		return fmt.Errorf("unmarshal() zlib opening: %w", err)
 	}
 
 	envData := bytes.NewBuffer([]byte{})
+	// G110: Potential DoS vulnerability via decompression bomb (gosec)
+	// #nosec
 	_, err = io.Copy(envData, w)
 	if err != nil {
-		return fmt.Errorf("unmarshal() zlib decoding: %v", err)
+		return fmt.Errorf("unmarshal() zlib decoding: %w", err)
 	}
 	w.Close()
 
 	err = json.Unmarshal(envData.Bytes(), &obj)
 	if err != nil {
-		return fmt.Errorf("unmarshal() json parsing: %v", err)
+		return fmt.Errorf("unmarshal() json parsing: %w", err)
 	}
 
 	return nil

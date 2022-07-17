@@ -28,12 +28,20 @@ set -euo pipefail
   trap at_exit EXIT
 
   kernel=$(uname -s | tr "[:upper:]" "[:lower:]")
+  case "${kernel}" in
+    mingw*)
+      kernel=windows
+      ;;
+  esac
   case "$(uname -m)" in
     x86_64)
       machine=amd64
       ;;
     i686 | i386)
       machine=386
+      ;;
+    aarch64 | arm64)
+      machine=arm64
       ;;
     *)
       die "Machine $(uname -m) not supported by the installer.\n" \
@@ -46,7 +54,9 @@ set -euo pipefail
   : "${bin_path:=}"
 
   if [[ -z "$bin_path" ]]; then
-    log "looking for a writeable PATH"
+    log "bin_path is not set, you can set bin_path to specify the installation path"
+    log "e.g. export bin_path=/path/to/installation before installing"
+    log "looking for a writeable path from PATH environment variable"
     for path in $(echo "$PATH" | tr ':' '\n'); do
       if [[ -w $path ]]; then
         bin_path=$path
@@ -74,7 +84,7 @@ set -euo pipefail
 
   cat <<DONE
 
-The direnv binary is now avaible in:
+The direnv binary is now available in:
 
     $bin_path/direnv
 

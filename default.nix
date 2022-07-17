@@ -1,34 +1,37 @@
-{ pkgs ? import ./nix {} }:
-with pkgs;
-
-buildGoPackage rec {
+{ pkgs ? import ./nix { } }:
+let
+  inherit (pkgs)
+    bash
+    buildGoModule
+    lib
+    stdenv
+    ;
+in
+buildGoModule rec {
   name = "direnv-${version}";
   version = lib.fileContents ./version.txt;
-  goPackagePath = "github.com/direnv/direnv";
-  subPackages = ["."];
+  subPackages = [ "." ];
 
-  src = lib.cleanSource ./.;
+  vendorSha256 = "sha256-u/LukIOYRudFYOrrlZTMtDAlM3+WjoSBiueR7aySSVU=";
 
-  postConfigure = ''
-    cd $NIX_BUILD_TOP/go/src/$goPackagePath
-  '';
+  src = builtins.fetchGit ./.;
+
+  # FIXME: find out why there is a Go reference lingering
+  allowGoReference = true;
 
   # we have no bash at the moment for windows
-  makeFlags = stdenv.lib.optional (!stdenv.hostPlatform.isWindows) [
+  makeFlags = lib.optional (!stdenv.hostPlatform.isWindows) [
     "BASH_PATH=${bash}/bin/bash"
   ];
 
   installPhase = ''
-    mkdir -p $out
-    make install DESTDIR=$bin
-    mkdir -p $bin/share/fish/vendor_conf.d
-    echo "eval ($bin/bin/direnv hook fish)" > $bin/share/fish/vendor_conf.d/direnv.fish
+    make install PREFIX=$out
   '';
 
-  meta = with stdenv.lib; {
+  meta = {
     description = "A shell extension that manages your environment";
     homepage = https://direnv.net;
-    license = licenses.mit;
-    maintainers = with maintainers; [ zimbatm ];
+    license = lib.licenses.mit;
+    maintainers = [ lib.maintainers.zimbatm ];
   };
 }

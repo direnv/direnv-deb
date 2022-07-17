@@ -4,6 +4,7 @@ direnv -- unclutter your .profile
 [![Built with Nix](https://builtwithnix.org/badge.svg)](https://builtwithnix.org)
 [![Packaging status](https://repology.org/badge/tiny-repos/direnv.svg)](https://repology.org/project/direnv/versions)
 [![latest packaged version(s)](https://repology.org/badge/latest-versions/direnv.svg)](https://repology.org/project/direnv/versions)
+[![Support room on Matrix](https://img.shields.io/matrix/direnv:numtide.com.svg?label=%23direnv%3Anumtide.com&logo=matrix&server_fqdn=matrix.numtide.com)](https://matrix.to/#/#direnv:numtide.com)
 
 `direnv` is an extension for your shell. It augments existing shells with a
 new feature that can load and unload environment variables depending on the
@@ -17,10 +18,11 @@ current directory.
 
 ## How it works
 
-Before each prompt, direnv checks for the existence of a `.envrc` file in the
-current and parent directories. If the file exists (and is authorized), it is
-loaded into a **bash** sub-shell and all exported variables are then captured
-by direnv and then made available to the current shell.
+Before each prompt, direnv checks for the existence of a `.envrc` file (and
+[optionally](man/direnv.toml.1.md#load_dotenv) a `.env` file) in the current
+and parent directories. If the file exists (and is authorized), it is loaded
+into a **bash** sub-shell and all exported variables are then captured by
+direnv and then made available to the current shell.
 
 It supports hooks for all the common shells like bash, zsh, tcsh and fish.
 This allows project-specific environment variables without cluttering the
@@ -48,7 +50,7 @@ Now restart your shell.
 
 To follow along in your shell once direnv is installed.
 
-```
+```shell
 # Create a new folder for demo purposes.
 $ mkdir ~/my-project
 $ cd ~/my-project
@@ -100,6 +102,11 @@ It's also possible to create your own extensions by creating a bash file at
 loaded before your `.envrc` and thus allows you to make your own extensions to
 direnv.
 
+Note that this functionality is not supported in `.env` files. If the
+coexistence of both is needed, one can use `.envrc` for leveraging stdlib and
+append `dotenv` at the end of it to instruct direnv to also read the `.env`
+file next.
+
 ## Docs
 
 * [Install direnv](docs/installation.md)
@@ -142,7 +149,7 @@ confusing for users:
 Bug reports, contributions and forks are welcome. All bugs or other forms of
 discussion happen on http://github.com/direnv/direnv/issues .
 
-Or drop by on [IRC (#direnv on freenode)](irc://irc.freenode.net/#direnv) to
+Or drop by on [Matrix](https://matrix.to/#/#direnv:numtide.com) to
 have a chat. If you ask a question make sure to stay around as not everyone is
 active all day.
 
@@ -151,7 +158,7 @@ active all day.
 Here is a list of projects you might want to look into if you are using direnv.
 
 * [starship](https://starship.rs/) - A cross-shell prompt.
-* [nix-direnv](https://github.com/nix-community/nix-direnv) - A fast, persistent use_nix implementation for direnv.
+* [Projects for Nix integration](https://github.com/direnv/direnv/wiki/Nix) - choose from one of a variety of projects offering improvements over Direnv's built-in `use_nix` implementation.
 
 ## Related projects
 

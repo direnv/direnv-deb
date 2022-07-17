@@ -2,7 +2,7 @@
 
 Setup a go environment https://golang.org/doc/install
 
-> go >= 1.11 is required
+> go >= 1.16 is required
 
 Clone the project:
 
@@ -23,4 +23,4 @@ To install to /usr/local:
 
 Or to a different location like `~/.local`:
 
-    $ make install DESTDIR=~/.local
+    $ make install PREFIX=~/.local
