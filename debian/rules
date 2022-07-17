@@ -9,8 +9,5 @@ export DH_GOLANG_EXCLUDES := script
 %:
 	dh $@ --builddirectory=_build --buildsystem=golang --with=golang
 
-override_dh_auto_test:
-
-
 override_dh_auto_install:
 	dh_auto_install -- --no-source
