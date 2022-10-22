@@ -1,3 +1,4 @@
 man/direnv.1
 man/direnv-fetchurl.1
 man/direnv-stdlib.1
+man/direnv.toml.1
