@@ -15,8 +15,12 @@ _direnv_hook() {
   trap - SIGINT;
   return $previous_exit_status;
 };
-if ! [[ "${PROMPT_COMMAND:-}" =~ _direnv_hook ]]; then
-  PROMPT_COMMAND="_direnv_hook${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+if [[ ";${PROMPT_COMMAND[*]:-};" != *";_direnv_hook;"* ]]; then
+  if [[ "$(declare -p PROMPT_COMMAND 2>&1)" == "declare -a"* ]]; then
+    PROMPT_COMMAND=(_direnv_hook "${PROMPT_COMMAND[@]}")
+  else
+    PROMPT_COMMAND="_direnv_hook${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+  fi
 fi
 `
 
@@ -58,7 +62,7 @@ func (sh bash) escape(str string) string {
  * Escaping
  */
 
-//nolint
+// nolint
 const (
 	ACK           = 6
 	TAB           = 9
@@ -78,7 +82,7 @@ const (
 	CLOSE_BRACKET = 93
 	BACKTICK      = 96
 	LOWERCASE_Z   = 122
-	TILDA         = 126
+	TILDE         = 126
 	DEL           = 127
 )
 
@@ -159,7 +163,7 @@ func BashEscape(str string) string {
 			quoted(char)
 		case char <= BACKTICK:
 			quoted(char)
-		case char <= TILDA:
+		case char <= TILDE:
 			quoted(char)
 		case char == DEL:
 			hex(char)

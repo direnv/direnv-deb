@@ -7,7 +7,7 @@ import (
 
 type vim struct{}
 
-// Vim adds support for vim. Not really a shell but it's handly.
+// Vim adds support for vim. Not really a shell but it's handy.
 var Vim Shell = vim{}
 
 func (sh vim) Hook() (string, error) {
@@ -47,5 +47,9 @@ func (sh vim) escapeKey(str string) string {
 
 // TODO: Make sure this escaping is valid
 func (sh vim) escapeValue(str string) string {
-	return "'" + strings.Replace(str, "'", "''", -1) + "'"
+	replacer := strings.NewReplacer(
+		"\n", "\\n",
+		"'", "''",
+	)
+	return "'" + replacer.Replace(str) + "'"
 }

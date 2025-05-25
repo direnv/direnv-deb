@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -23,9 +24,13 @@ type Config struct {
 	BashPath        string
 	RCFile          string
 	TomlPath        string
+	HideEnvDiff     bool
 	DisableStdin    bool
 	StrictEnv       bool
 	LoadDotenv      bool
+	LogFormat       string
+	LogFilter       *regexp.Regexp
+	LogColor        bool
 	WarnTimeout     time.Duration
 	WhitelistPrefix []string
 	WhitelistExact  map[string]bool
@@ -48,17 +53,20 @@ type tomlConfig struct {
 }
 
 type tomlGlobal struct {
-	BashPath     string       `toml:"bash_path"`
-	DisableStdin bool         `toml:"disable_stdin"`
-	StrictEnv    bool         `toml:"strict_env"`
-	SkipDotenv   bool         `toml:"skip_dotenv"` // deprecated, use load_dotenv
-	LoadDotenv   bool         `toml:"load_dotenv"`
-	WarnTimeout  tomlDuration `toml:"warn_timeout"`
+	BashPath     string        `toml:"bash_path"`
+	DisableStdin bool          `toml:"disable_stdin"`
+	StrictEnv    bool          `toml:"strict_env"`
+	SkipDotenv   bool          `toml:"skip_dotenv"` // deprecated, use load_dotenv
+	LoadDotenv   bool          `toml:"load_dotenv"`
+	WarnTimeout  *tomlDuration `toml:"warn_timeout"`
+	HideEnvDiff  bool          `toml:"hide_env_diff"`
+	LogFormat    string        `toml:"log_format"`
+	LogFilter    string        `toml:"log_filter"`
 }
 
 type tomlWhitelist struct {
-	Prefix []string
-	Exact  []string
+	Prefix []string `toml:"prefix"`
+	Exact  []string `toml:"exact"`
 }
 
 // Expand a path string prefixed with ~/ to the current user's home directory.
@@ -101,10 +109,17 @@ func LoadConfig(env Env) (config *Config, err error) {
 	exePath = strings.Replace(exePath, "\\", "/", -1)
 	config.SelfPath = exePath
 
-	if config.WorkDir, err = os.Getwd(); err != nil {
-		err = fmt.Errorf("LoadConfig() Getwd failed: %w", err)
-		return
+	var wdErr error
+	if config.WorkDir, wdErr = os.Getwd(); wdErr != nil {
+		// handled by `findEnvUp`
+		return //nolint:nilnesserr
 	}
+
+	// Default Warn Timeout
+	config.WarnTimeout = 5 * time.Second
+
+	// Default log format
+	config.LogFormat = defaultLogFormat
 
 	config.RCFile = env[DIRENV_FILE]
 
@@ -135,6 +150,26 @@ func LoadConfig(env Env) (config *Config, err error) {
 			return
 		}
 
+		config.LogColor = !(os.Getenv("TERM") == "dumb")
+
+		format, ok := env["DIRENV_LOG_FORMAT"]
+		if ok {
+			config.LogFormat = format
+		} else if global.LogFormat != "" {
+			config.LogFormat = global.LogFormat
+		}
+
+		if global.LogFilter != "" {
+			filterRegexp, err := regexp.Compile(global.LogFilter)
+			if err != nil {
+				err = fmt.Errorf("error in log filter: %w", err)
+				return nil, err
+			}
+			config.LogFilter = filterRegexp
+		}
+
+		config.HideEnvDiff = tomlConf.HideEnvDiff
+
 		for _, path := range tomlConf.Whitelist.Prefix {
 			config.WhitelistPrefix = append(config.WhitelistPrefix, expandTildePath(path))
 		}
@@ -148,23 +183,25 @@ func LoadConfig(env Env) (config *Config, err error) {
 		}
 
 		if tomlConf.SkipDotenv {
-			logError("skip_dotenv has been inverted to load_dotenv.")
+			logError(config, "skip_dotenv has been inverted to load_dotenv.")
 		}
 
 		config.BashPath = tomlConf.BashPath
 		config.DisableStdin = tomlConf.DisableStdin
 		config.LoadDotenv = tomlConf.LoadDotenv
 		config.StrictEnv = tomlConf.StrictEnv
-		config.WarnTimeout = tomlConf.WarnTimeout.Duration
+		if tomlConf.WarnTimeout != nil {
+			config.WarnTimeout = tomlConf.WarnTimeout.Duration
+		}
 	}
 
-	if config.WarnTimeout == 0 {
-		timeout, err := time.ParseDuration(env.Fetch("DIRENV_WARN_TIMEOUT", "5s"))
-		if err != nil {
-			logError("invalid DIRENV_WARN_TIMEOUT: " + err.Error())
-			timeout = 5 * time.Second
+	if ts := env.Fetch("DIRENV_WARN_TIMEOUT", ""); ts != "" {
+		timeout, err := time.ParseDuration(ts)
+		if err == nil {
+			config.WarnTimeout = timeout
+		} else {
+			logError(config, "invalid DIRENV_WARN_TIMEOUT: "+err.Error())
 		}
-		config.WarnTimeout = timeout
 	}
 
 	if config.BashPath == "" {
@@ -202,13 +239,18 @@ func (config *Config) AllowDir() string {
 	return filepath.Join(config.DataDir, "allow")
 }
 
+// DenyDir is the folder where all the "deny" files are stored.
+func (config *Config) DenyDir() string {
+	return filepath.Join(config.DataDir, "deny")
+}
+
 // LoadedRC returns a RC file if any has been loaded
 func (config *Config) LoadedRC() *RC {
-	if config.RCFile == "" {
+	if config.Env[DIRENV_FILE] == "" {
 		logDebug("RCFile is blank - loadedRC is nil")
 		return nil
 	}
-	rcPath := config.RCFile
+	rcPath := config.Env[DIRENV_FILE]
 
 	timesString := config.Env[DIRENV_WATCHES]
 
