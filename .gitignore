@@ -1,9 +1,0 @@
-*.sw?
-.direnv
-.gopath
-/direnv
-/direnv.test
-/dist
-/test/config
-/test/data
-/test/scenarios/inherited/.envrc

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -10,11 +9,11 @@ import (
 // CmdPrune is `direnv prune`
 var CmdPrune = &Cmd{
 	Name:   "prune",
-	Desc:   "removes old allowed files",
+	Desc:   "Removes old allowed files",
 	Action: actionWithConfig(cmdPruneAction),
 }
 
-func cmdPruneAction(env Env, args []string, config *Config) (err error) {
+func cmdPruneAction(_ Env, _ []string, config *Config) (err error) {
 	var dir *os.File
 	var fi os.FileInfo
 	var dirList []string
@@ -37,7 +36,7 @@ func cmdPruneAction(env Env, args []string, config *Config) (err error) {
 		}
 
 		if !fi.IsDir() {
-			if envrc, err = ioutil.ReadFile(filename); err != nil {
+			if envrc, err = os.ReadFile(filename); err != nil {
 				return err
 			}
 			envrcStr := strings.TrimSpace(string(envrc))

@@ -1,3 +1,11 @@
+direnv (2.36.0-1) unstable; urgency=medium
+
+  * New upstream version 2.36.0
+    closes #1076361
+  * add gbp.conf
+
+ -- Christopher Bock <christopher@bocki.com>  Sun, 25 May 2025 16:11:06 +0200
+
 direnv (2.32.1-2) unstable; urgency=medium
 
   * debian: manpages: Include direnv.toml.1 (Closes: #1022208)

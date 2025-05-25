@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -21,7 +20,7 @@ var CmdFetchURL = &Cmd{
 	Action: actionWithConfig(cmdFetchURL),
 }
 
-func cmdFetchURL(env Env, args []string, config *Config) (err error) {
+func cmdFetchURL(_ Env, args []string, config *Config) (err error) {
 	if len(args) < 2 {
 		return fmt.Errorf("missing URL argument")
 	}
@@ -60,11 +59,12 @@ func cmdFetchURL(env Env, args []string, config *Config) (err error) {
 
 	// Create a temporary file to copy the content into, before the CAS file
 	// location can be calculated.
-	tmpfile, err := ioutil.TempFile(casDir, "tmp")
+	tmpfile, err := os.CreateTemp(casDir, "tmp")
 	if err != nil {
 		return err
 	}
 	defer os.Remove(tmpfile.Name()) // clean up
+	defer tmpfile.Close()
 
 	// Get the URL
 	// G107: Potential HTTP request made with variable url
@@ -105,6 +105,10 @@ func cmdFetchURL(env Env, args []string, config *Config) (err error) {
 
 	// Put the file into the CAS store if it's not already there
 	if !fileExists(casFile) {
+		err = tmpfile.Close()
+		if err != nil {
+			return err
+		}
 		// Move the temporary file to the CAS location.
 		if err = os.Rename(tmpfile.Name(), casFile); err != nil {
 			return err

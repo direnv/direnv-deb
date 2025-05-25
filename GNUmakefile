@@ -57,7 +57,9 @@ ifneq ($(strip $(GO_LDFLAGS)),)
 	GO_BUILD_FLAGS = -ldflags '$(GO_LDFLAGS)'
 endif
 
-direnv: *.go
+SOURCES = $(wildcard *.go internal/*/*.go pkg/*/*.go)
+
+direnv: $(SOURCES)
 	$(GO) build $(GO_BUILD_FLAGS) -o $(exe)
 
 ############################################################################
@@ -70,7 +72,7 @@ fmt-go:
 	$(GO) fmt
 
 fmt-sh:
-	@command -v shfmt >/dev/null || (echo "Could not format stdlib.sh because shfmt is missing. Run: go get -u mvdan.cc/sh/cmd/shfmt"; false)
+	@command -v shfmt >/dev/null || (echo "Could not format stdlib.sh because shfmt is missing. Run: go install mvdan.cc/sh/cmd/shfmt@latest"; false)
 	shfmt -i 2 -w stdlib.sh
 
 ############################################################################
@@ -84,7 +86,7 @@ roffs = $(man_md:.md=)
 man: $(roffs)
 
 %.1: %.1.md
-	@command -v go-md2man >/dev/null || (echo "Could not generate man page because go-md2man is missing. Run: go get -u github.com/cpuguy83/go-md2man/v2"; false)
+	@command -v go-md2man >/dev/null || (echo "Could not generate man page because go-md2man is missing. Run: go install github.com/cpuguy83/go-md2man/v2@latest"; false)
 	go-md2man -in $< -out $@
 
 ############################################################################
@@ -101,7 +103,18 @@ tests = \
 				test-elvish \
 				test-fish \
 				test-tcsh \
-				test-zsh
+				test-zsh \
+				test-pwsh \
+				test-mx
+
+# Skip few checks for IBM Z mainframe's z/OS aka OS/390
+ifeq ($(shell uname), OS/390)
+	tests = \
+		test-stdlib \
+		test-go \
+		test-go-fmt \
+		test-bash
+endif
 
 .PHONY: $(tests)
 test: build $(tests)
@@ -137,6 +150,12 @@ test-tcsh:
 test-zsh:
 	zsh ./test/direnv-test.zsh
 
+test-pwsh:
+	pwsh ./test/direnv-test.ps1
+
+test-mx:
+	murex -trypipe ./test/direnv-test.mx
+
 ############################################################################
 # Installation
 ############################################################################
@@ -154,7 +173,7 @@ install: all
 dist:
 	@command -v gox >/dev/null || (echo "Could not generate dist because gox is missing. Run: go get -u github.com/mitchellh/gox"; false)
 	CGO_ENABLED=0 GOFLAGS="-trimpath" \
-		gox -output "$(DISTDIR)/direnv.{{.OS}}-{{.Arch}}" \
+		gox -rebuild -ldflags="-s -w" -output "$(DISTDIR)/direnv.{{.OS}}-{{.Arch}}" \
 		-osarch darwin/amd64 \
 		-osarch darwin/arm64 \
 		-osarch freebsd/386 \
