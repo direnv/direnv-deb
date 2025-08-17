@@ -848,7 +848,7 @@ except Exception:
    ve="virtualenv"
  except Exception:
    ve=""
-print(p.python_version()+" "+ve)
+print(".".join(p.python_version_tuple()[:2])+" "+ve)
 EOF
 )
     if [[ -z $python_version ]]; then
@@ -1299,16 +1299,16 @@ use_nix() {
     ["terminfo"]=${terminfo:-__UNSET__}
   )
   direnv_load nix-shell --show-trace "$@" --run "$(join_args "$direnv" dump)"
-  if [[ $# == 0 ]]; then
-    for key in "${!values_to_restore[@]}"; do
-      local value=${values_to_restore[$key]}
-      if [[ $value == __UNSET__ ]]; then
-        unset "$key"
-      else
-        export "$key=$value"
-      fi
-    done
+  for key in "${!values_to_restore[@]}"; do
+    local value=${values_to_restore[$key]}
+    if [[ $value == __UNSET__ ]]; then
+      unset "$key"
+    else
+      export "$key=$value"
+    fi
+  done
 
+  if [[ $# == 0 ]]; then
     watch_file default.nix shell.nix
   fi
 }
