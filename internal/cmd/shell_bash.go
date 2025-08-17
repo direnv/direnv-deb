@@ -15,8 +15,12 @@ _direnv_hook() {
   trap - SIGINT;
   return $previous_exit_status;
 };
-if ! [[ "${PROMPT_COMMAND:-}" =~ _direnv_hook ]]; then
-  PROMPT_COMMAND="_direnv_hook${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+if [[ ";${PROMPT_COMMAND[*]:-};" != *";_direnv_hook;"* ]]; then
+  if [[ "$(declare -p PROMPT_COMMAND 2>&1)" == "declare -a"* ]]; then
+    PROMPT_COMMAND=(_direnv_hook "${PROMPT_COMMAND[@]}")
+  else
+    PROMPT_COMMAND="_direnv_hook${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+  fi
 fi
 `
 
@@ -24,7 +28,8 @@ func (sh bash) Hook() (string, error) {
 	return bashHook, nil
 }
 
-func (sh bash) Export(e ShellExport) (out string) {
+func (sh bash) Export(e ShellExport) (string, error) {
+	var out string
 	for key, value := range e {
 		if value == nil {
 			out += sh.unset(key)
@@ -32,14 +37,15 @@ func (sh bash) Export(e ShellExport) (out string) {
 			out += sh.export(key, *value)
 		}
 	}
-	return out
+	return out, nil
 }
 
-func (sh bash) Dump(env Env) (out string) {
+func (sh bash) Dump(env Env) (string, error) {
+	var out string
 	for key, value := range env {
 		out += sh.export(key, value)
 	}
-	return out
+	return out, nil
 }
 
 func (sh bash) export(key, value string) string {
@@ -58,31 +64,37 @@ func (sh bash) escape(str string) string {
  * Escaping
  */
 
-//nolint
+// nolint
 const (
-	ACK           = 6
-	TAB           = 9
-	LF            = 10
-	CR            = 13
-	US            = 31
-	SPACE         = 32
-	AMPERSTAND    = 38
-	SINGLE_QUOTE  = 39
-	PLUS          = 43
-	NINE          = 57
-	QUESTION      = 63
-	UPPERCASE_Z   = 90
-	OPEN_BRACKET  = 91
-	BACKSLASH     = 92
-	UNDERSCORE    = 95
-	CLOSE_BRACKET = 93
-	BACKTICK      = 96
-	LOWERCASE_Z   = 122
-	TILDA         = 126
-	DEL           = 127
+	ACK               = 6
+	TAB               = 9
+	LF                = 10
+	CR                = 13
+	US                = 31
+	SPACE             = 32
+	AMPERSTAND        = 38
+	SINGLE_QUOTE      = 39
+	STAR              = 42
+	PLUS              = 43
+	NINE              = 57
+	COLON             = 58
+	EQUALS            = 61
+	QUESTION          = 63
+	UPPERCASE_Z       = 90
+	OPEN_BRACKET      = 91
+	BACKSLASH         = 92
+	UNDERSCORE        = 95
+	CLOSE_BRACKET     = 93
+	BACKTICK          = 96
+	LOWERCASE_Z       = 122
+	OPEN_CURLY_BRACE  = 123
+	CLOSE_CURLY_BRACE = 125
+	TILDE             = 126
+	DEL               = 127
 )
 
-// https://github.com/solidsnack/shell-escape/blob/master/Text/ShellEscape/Bash.hs
+// BashEscape escapes strings for safe use in Bash.
+// Based on https://github.com/solidsnack/shell-escape/blob/master/Text/ShellEscape/Bash.hs
 /*
 A Bash escaped string. The strings are wrapped in @$\'...\'@ if any
 bytes within them must be escaped; otherwise, they are left as is.
@@ -159,7 +171,7 @@ func BashEscape(str string) string {
 			quoted(char)
 		case char <= BACKTICK:
 			quoted(char)
-		case char <= TILDA:
+		case char <= TILDE:
 			quoted(char)
 		case char == DEL:
 			hex(char)

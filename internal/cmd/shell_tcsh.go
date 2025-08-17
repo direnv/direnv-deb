@@ -14,7 +14,8 @@ func (sh tcsh) Hook() (string, error) {
 	return "alias precmd 'eval `{{.SelfPath}} export tcsh`'", nil
 }
 
-func (sh tcsh) Export(e ShellExport) (out string) {
+func (sh tcsh) Export(e ShellExport) (string, error) {
+	var out string
 	for key, value := range e {
 		if value == nil {
 			out += sh.unset(key)
@@ -22,14 +23,15 @@ func (sh tcsh) Export(e ShellExport) (out string) {
 			out += sh.export(key, *value)
 		}
 	}
-	return out
+	return out, nil
 }
 
-func (sh tcsh) Dump(env Env) (out string) {
+func (sh tcsh) Dump(env Env) (string, error) {
+	var out string
 	for key, value := range env {
 		out += sh.export(key, value)
 	}
-	return out
+	return out, nil
 }
 
 func (sh tcsh) export(key, value string) string {
@@ -115,7 +117,7 @@ func (sh tcsh) escape(str string) string {
 			quoted(char)
 		case char <= BACKTICK:
 			quoted(char)
-		case char <= TILDA:
+		case char <= TILDE:
 			quoted(char)
 		case char == DEL:
 			hex(char)

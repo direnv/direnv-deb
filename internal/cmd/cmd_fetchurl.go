@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -21,13 +21,13 @@ var CmdFetchURL = &Cmd{
 	Action: actionWithConfig(cmdFetchURL),
 }
 
-func cmdFetchURL(env Env, args []string, config *Config) (err error) {
+func cmdFetchURL(_ Env, args []string, config *Config) (err error) {
 	if len(args) < 2 {
 		return fmt.Errorf("missing URL argument")
 	}
 
 	var (
-		algo          sri.Algo = sri.SHA256
+		algo = sri.SHA256
 		url           string
 		integrityHash string
 	)
@@ -60,11 +60,20 @@ func cmdFetchURL(env Env, args []string, config *Config) (err error) {
 
 	// Create a temporary file to copy the content into, before the CAS file
 	// location can be calculated.
-	tmpfile, err := ioutil.TempFile(casDir, "tmp")
+	tmpfile, err := os.CreateTemp(casDir, "tmp")
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tmpfile.Name()) // clean up
+	defer func() {
+		if err := os.Remove(tmpfile.Name()); err != nil {
+			log.Printf("Warning: failed to remove temp file %s: %v", tmpfile.Name(), err)
+		}
+	}() // clean up
+	defer func() {
+		if err := tmpfile.Close(); err != nil {
+			log.Printf("Warning: failed to close temp file: %v", err)
+		}
+	}()
 
 	// Get the URL
 	// G107: Potential HTTP request made with variable url
@@ -73,7 +82,11 @@ func cmdFetchURL(env Env, args []string, config *Config) (err error) {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("Warning: failed to close response body: %v", err)
+		}
+	}()
 
 	// Abort if we don't get a 200 back
 	if resp.StatusCode != 200 {
@@ -105,6 +118,10 @@ func cmdFetchURL(env Env, args []string, config *Config) (err error) {
 
 	// Put the file into the CAS store if it's not already there
 	if !fileExists(casFile) {
+		err = tmpfile.Close()
+		if err != nil {
+			return err
+		}
 		// Move the temporary file to the CAS location.
 		if err = os.Rename(tmpfile.Name(), casFile); err != nil {
 			return err

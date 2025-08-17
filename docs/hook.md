@@ -24,6 +24,16 @@ Add the following line at the end of the `~/.zshrc` file:
 eval "$(direnv hook zsh)"
 ```
 
+## Oh my zsh
+
+Oh my zsh has [a core plugin with direnv](https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/direnv) support.
+
+Add direnv to the plugins array in your zshrc file:
+
+```sh
+plugins=(... direnv)
+```
+
 ## FISH
 
 Add the following line at the end of the `~/.config/fish/config.fish` file:
@@ -32,7 +42,7 @@ Add the following line at the end of the `~/.config/fish/config.fish` file:
 direnv hook fish | source
 ```
 
-Fish supports 3 modes you can set with with the global environment variable `direnv_fish_mode`:
+Fish supports 3 modes you can set with the global environment variable `direnv_fish_mode`:
 
 ```fish
 set -g direnv_fish_mode eval_on_arrow    # trigger direnv at prompt, and on every arrow-based directory change (default)
@@ -53,11 +63,45 @@ eval `direnv hook tcsh`
 Run:
 
 ```
-$> direnv hook elvish > ~/.elvish/lib/direnv.elv
+~> mkdir -p ~/.config/elvish/lib
+~> direnv hook elvish > ~/.config/elvish/lib/direnv.elv
 ```
 
-and add the following line to your `~/.elvish/rc.elv` file:
+and add the following line to your `~/.config/elvish/rc.elv` file:
 
 ```
 use direnv
+```
+
+## Nushell
+
+Add the following hook to your `$env.config.hooks.env_change.PWD` list in `config.nu`:
+```nushell
+{ ||
+    if (which direnv | is-empty) {
+        return
+    }
+
+    direnv export json | from json | default {} | load-env
+}
+```
+
+> **Note**
+> you can follow the [`nu_scripts` of Nushell](https://github.com/nushell/nu_scripts/blob/main/nu-hooks/nu-hooks/direnv/config.nu)
+> for the always up-to-date version of the hook above
+
+### PowerShell
+
+Add the following line to your `$PROFILE`:
+
+```powershell
+Invoke-Expression "$(direnv hook pwsh)"
+```
+
+## Murex
+
+Add the following line to your `~/.murex_profile` file:
+
+```sh
+direnv hook murex -> source
 ```
