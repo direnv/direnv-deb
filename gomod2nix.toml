@@ -1,0 +1,15 @@
+schema = 3
+
+[mod]
+  [mod."github.com/BurntSushi/toml"]
+    version = "v1.5.0"
+    hash = "sha256-wX8bEVo7swuuAlm0awTIiV1KNCAXnm7Epzwl+wzyqhw="
+  [mod."github.com/mattn/go-isatty"]
+    version = "v0.0.20"
+    hash = "sha256-qhw9hWtU5wnyFyuMbKx+7RB8ckQaFQ8D+8GKPkN3HHQ="
+  [mod."golang.org/x/mod"]
+    version = "v0.25.0"
+    hash = "sha256-nW75iR1HL00GTFqWGxnJM/bFSa2vg4nlb3I/pFV10UA="
+  [mod."golang.org/x/sys"]
+    version = "v0.30.0"
+    hash = "sha256-BuhWtwDkciVioc03rxty6G2vcZVnPX85lI7tgQOFVP8="

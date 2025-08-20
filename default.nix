@@ -1,37 +1,34 @@
-{ pkgs ? import ./nix { } }:
-let
-  inherit (pkgs)
-    bash
-    buildGoModule
-    lib
-    stdenv
-    ;
-in
-buildGoModule rec {
-  name = "direnv-${version}";
+{ buildGoApplication, lib, stdenv, bash }:
+buildGoApplication {
+  pname = "direnv";
   version = lib.fileContents ./version.txt;
   subPackages = [ "." ];
 
-  vendorSha256 = "sha256-u/LukIOYRudFYOrrlZTMtDAlM3+WjoSBiueR7aySSVU=";
-
-  src = builtins.fetchGit ./.;
-
-  # FIXME: find out why there is a Go reference lingering
-  allowGoReference = true;
+  src = ./.;
+  pwd = ./.;
+  modules = ./gomod2nix.toml;
 
   # we have no bash at the moment for windows
-  makeFlags = lib.optional (!stdenv.hostPlatform.isWindows) [
-    "BASH_PATH=${bash}/bin/bash"
-  ];
+  BASH_PATH =
+    lib.optionalString (!stdenv.hostPlatform.isWindows)
+      "${bash}/bin/bash";
+
+  # replace the build phase to use the GNUMakefile instead
+  buildPhase = ''
+    ls -la ./vendor
+    make BASH_PATH=$BASH_PATH
+  '';
 
   installPhase = ''
+    echo $GOCACHE
     make install PREFIX=$out
   '';
 
   meta = {
     description = "A shell extension that manages your environment";
-    homepage = https://direnv.net;
+    homepage = "https://direnv.net";
     license = lib.licenses.mit;
     maintainers = [ lib.maintainers.zimbatm ];
+    mainProgram = "direnv";
   };
 }

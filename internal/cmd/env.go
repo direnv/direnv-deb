@@ -15,8 +15,7 @@ type Env map[string]string
 // key->values which is more handy to work with.
 //
 // NOTE:  We don't support having two variables with the same name.
-//        I've never seen it used in the wild but accoding to POSIX
-//        it's allowed.
+// I've never seen it used in the wild but according to POSIX it's allowed.
 func GetEnv() Env {
 	env := make(Env)
 
@@ -84,7 +83,7 @@ func (env Env) ToGoEnv() []string {
 
 // ToShell outputs the environment into an evaluatable string that is
 // understood by the target shell
-func (env Env) ToShell(shell Shell) string {
+func (env Env) ToShell(shell Shell) (string, error) {
 	e := make(ShellExport)
 
 	for key, value := range env {

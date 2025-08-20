@@ -19,7 +19,6 @@ export DIRENV_CONFIG=$PWD
 unset DIRENV_BASH
 unset DIRENV_DIR
 unset DIRENV_FILE
-unset DIRENV_MTIME
 unset DIRENV_WATCHES
 unset DIRENV_DIFF
 
@@ -220,6 +219,11 @@ test_start "watch-dir"
 
     direnv_eval
 
+    if ! direnv watch-print | grep -q "testdir"; then
+        echo "FAILED: testdir added to watches"
+        exit 1
+    fi
+
     if ! direnv show_dump "${DIRENV_WATCHES}" | grep -q "testfile"; then
         echo "FAILED: testfile not added to DIRENV_WATCHES"
         exit 1
@@ -258,6 +262,11 @@ if has python; then
       echo "FAILED: VIRTUAL_ENV/bin not added to PATH"
       exit 1
     fi
+
+    if [[ ! -f .direnv/CACHEDIR.TAG ]]; then
+      echo "the layout dir should contain that file to filter that folder out of backups"
+      exit 1
+    fi
   test_stop
 
   test_start "python-custom-virtual-env"
@@ -274,10 +283,25 @@ fi
 test_start "aliases"
   direnv deny
   # check that allow/deny aliases work
-  direnv permit && direnv_eval && test -n "${HELLO}"
-  direnv block  && direnv_eval && test -z "${HELLO}"
-  direnv grant  && direnv_eval && test -n "${HELLO}"
-  direnv revoke && direnv_eval && test -z "${HELLO}"
+  direnv permit   && direnv_eval && test -n "${HELLO}"
+  direnv block    && direnv_eval && test -z "${HELLO}"
+  direnv grant    && direnv_eval && test -n "${HELLO}"
+  direnv revoke   && direnv_eval && test -z "${HELLO}"
+  direnv grant    && direnv_eval && test -n "${HELLO}"
+  direnv disallow && direnv_eval && test -z "${HELLO}"
+test_stop
+
+# shellcheck disable=SC2016
+test_start '$test'
+  direnv_eval
+  [[ $FOO = bar ]]
+test_stop
+
+# Make sure that directories with names that can end up creating paths like
+# \b or \r are not broken (Windows specific issue).
+test_start 'special-characters/backspace/return'
+  direnv_eval
+  test_eq "${HI}" "there"
 test_stop
 
 # Context: foo/bar is a symlink to ../baz. foo/ contains and .envrc file
