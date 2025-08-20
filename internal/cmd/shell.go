@@ -11,17 +11,17 @@ type Shell interface {
 	Hook() (string, error)
 
 	// Export outputs the ShellExport as an evaluatable string on the host shell
-	Export(e ShellExport) string
+	Export(e ShellExport) (string, error)
 
 	// Dump outputs and evaluatable string that sets the env in the host shell
-	Dump(env Env) string
+	Dump(env Env) (string, error)
 }
 
 // ShellExport represents environment variables to add and remove on the host
 // shell.
 type ShellExport map[string]*string
 
-// Add represents the additon of a new environment variable
+// Add represents the addition of a new environment variable
 func (e ShellExport) Add(key, value string) {
 	e[key] = &value
 }
@@ -29,6 +29,21 @@ func (e ShellExport) Add(key, value string) {
 // Remove represents the removal of a given `key` environment variable.
 func (e ShellExport) Remove(key string) {
 	e[key] = nil
+}
+
+var supportedShellList = map[string]Shell{
+	"bash":    Bash,
+	"elvish":  Elvish,
+	"fish":    Fish,
+	"gha":     GitHubActions,
+	"gzenv":   GzEnv,
+	"json":    JSON,
+	"murex":   Murex,
+	"tcsh":    Tcsh,
+	"vim":     Vim,
+	"zsh":     Zsh,
+	"pwsh":    Pwsh,
+	"systemd": Systemd,
 }
 
 // DetectShell returns a Shell instance from the given target.
@@ -41,26 +56,9 @@ func DetectShell(target string) Shell {
 		target = target[1:]
 	}
 
-	switch target {
-	case "bash":
-		return Bash
-	case "elvish":
-		return Elvish
-	case "fish":
-		return Fish
-	case "gha":
-		return GitHubActions
-	case "gzenv":
-		return GzEnv
-	case "json":
-		return JSON
-	case "tcsh":
-		return Tcsh
-	case "vim":
-		return Vim
-	case "zsh":
-		return Zsh
+	detectedShell, isValid := supportedShellList[target]
+	if isValid {
+		return detectedShell
 	}
-
 	return nil
 }
