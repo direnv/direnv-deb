@@ -15,7 +15,7 @@ Build-Depends: debhelper-compat (= 13),
 	       shellcheck <!nocheck>,
 	       tcsh <!nocheck>,
 	       zsh <!nocheck>
-Standards-Version: 4.6.0
+Standards-Version: 4.7.2
 Homepage: http://direnv.net/
 Vcs-Git: https://github.com/direnv/direnv-deb.git
 Vcs-Browser: https://github.com/direnv/direnv-deb
