@@ -3,7 +3,7 @@
 ############################################################################
 
 # Set this to change the target installation path
-PREFIX   = /usr/local
+PREFIX   ?= /usr/local
 BINDIR   = ${PREFIX}/bin
 SHAREDIR = ${PREFIX}/share
 MANDIR   = ${SHAREDIR}/man
@@ -49,9 +49,11 @@ clean: ## Remove build artifacts
 GO_LDFLAGS =
 
 ifeq ($(shell uname), Darwin)
+  ifneq ($(CGO_ENABLED), 0)
 	# Fixes DYLD_INSERT_LIBRARIES issues
 	# See https://github.com/direnv/direnv/issues/194
 	GO_LDFLAGS += -linkmode=external
+  endif
 endif
 
 ifdef BASH_PATH
@@ -174,43 +176,39 @@ install: all ## Install direnv to PREFIX (default: /usr/local)
 	install -d $(DESTDIR)$(SHAREDIR)/fish/vendor_conf.d
 	echo "$(BINDIR)/direnv hook fish | source" > $(DESTDIR)$(SHAREDIR)/fish/vendor_conf.d/direnv.fish
 
-.PHONY: dist
-dist: ## Build cross-platform binaries
+dist_platforms = \
+	darwin/amd64 \
+	darwin/arm64 \
+	freebsd/386 \
+	freebsd/amd64 \
+	freebsd/arm \
+	linux/386 \
+	linux/amd64 \
+	linux/arm \
+	linux/arm64 \
+	linux/mips \
+	linux/mips64 \
+	linux/mips64le \
+	linux/mipsle \
+	linux/ppc64 \
+	linux/ppc64le \
+	linux/s390x \
+	netbsd/386 \
+	netbsd/amd64 \
+	netbsd/arm \
+	openbsd/386 \
+	openbsd/amd64 \
+	windows/386 \
+	windows/amd64 \
+	windows/arm64
+
+.PHONY: dist $(dist_platforms)
+dist: $(dist_platforms) ## Build cross-platform binaries (use -j to parallelize)
+
+$(dist_platforms):
 	@mkdir -p $(DISTDIR)
-	@echo "Building cross-platform binaries..."
-	@platforms=" \
-		darwin/amd64 \
-		darwin/arm64 \
-		freebsd/386 \
-		freebsd/amd64 \
-		freebsd/arm \
-		linux/386 \
-		linux/amd64 \
-		linux/arm \
-		linux/arm64 \
-		linux/mips \
-		linux/mips64 \
-		linux/mips64le \
-		linux/mipsle \
-		linux/ppc64 \
-		linux/ppc64le \
-		linux/s390x \
-		netbsd/386 \
-		netbsd/amd64 \
-		netbsd/arm \
-		openbsd/386 \
-		openbsd/amd64 \
-		windows/386 \
-		windows/amd64 \
-		windows/arm64 \
-	"; \
-	for platform in $$platforms; do \
-		os=$${platform%/*}; \
-		arch=$${platform#*/}; \
-		echo "Building for $$os/$$arch..."; \
-		CGO_ENABLED=0 GOFLAGS="-trimpath" GOOS=$$os GOARCH=$$arch \
-			$(GO) build -ldflags="-s -w" -o "$(DISTDIR)/direnv.$$os-$$arch"; \
-	done
+	CGO_ENABLED=0 GOFLAGS="-trimpath" GOOS=$(@D) GOARCH=$(@F) \
+		$(GO) build -ldflags="-s -w" -o "$(DISTDIR)/direnv.$(@D)-$(@F)$(if $(filter windows,$(@D)),.exe)"
 
 .PHONY: prepare-release
 prepare-release: ## Interactive release preparation (changelog, PR, tag)
@@ -223,9 +221,9 @@ create-release: dist ## Create GitHub release with binaries (CI only)
 		exit 1; \
 	fi
 	@echo "Extracting release notes from CHANGELOG.md..."
-	@release_notes=$$(awk '/^==================/{if(headers>0) exit} /^==================/{headers++; next} headers>0' CHANGELOG.md | sed '/^v[0-9]/d'); \
+	@release_notes=$$(awk '/^==================/{if(headers>0) exit} /^==================/{headers++; next} headers>0' CHANGELOG.md | sed -E '/^v?[0-9]+\.[0-9]+\.[0-9]+ \//d'); \
 	gh release create "$$GITHUB_REF_NAME" \
 		--title "Release $$GITHUB_REF_NAME" \
 		--notes "$$release_notes" \
-		--verify-tag
-	gh release upload "$$GITHUB_REF_NAME" $(DISTDIR)/direnv.*
+		--verify-tag \
+		$(DISTDIR)/direnv.*
