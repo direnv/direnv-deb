@@ -13,6 +13,7 @@ var Fish Shell = fish{}
 const fishHook = `
     function __direnv_export_eval --on-event fish_prompt;
         "{{.SelfPath}}" export fish | source;
+        __direnv_update_fish_complete_path;
 
         if test "$direnv_fish_mode" != "disable_arrow";
             function __direnv_cd_hook --on-variable PWD;
@@ -20,6 +21,7 @@ const fishHook = `
                     set -g __direnv_export_again 0;
                 else;
                     "{{.SelfPath}}" export fish | source;
+                    __direnv_update_fish_complete_path;
                 end;
             end;
         end;
@@ -29,10 +31,36 @@ const fishHook = `
         if set -q __direnv_export_again;
             set -e __direnv_export_again;
             "{{.SelfPath}}" export fish | source;
+            __direnv_update_fish_complete_path;
             echo;
         end;
 
         functions --erase __direnv_cd_hook;
+    end;
+
+    function __direnv_update_fish_complete_path;
+        set -l desired;
+        for p in $fish_complete_path;
+            contains -- $p $__direnv_fish_complete_paths;
+            or set -a desired $p;
+        end;
+
+        set -l added;
+        for dir in (string split ':' -- $XDG_DATA_DIRS);
+            test -n "$dir"; or continue;
+            # same normalisation as fish's share/config.fish, so contains matches its own entries
+            set -l completions_dir (string replace -r '([^/])/$' '$1' -- $dir)/fish/vendor_completions.d;
+            if test -d "$completions_dir"; and not contains -- $completions_dir $desired;
+                set -a desired $completions_dir;
+                set -a added $completions_dir;
+            end;
+        end;
+        set -g __direnv_fish_complete_paths $added;
+
+        # every assignment makes fish unload autoloaded completions (complete_invalidate_path)
+        if test (count $desired) -ne (count $fish_complete_path); or test "$desired" != "$fish_complete_path";
+            set -g fish_complete_path $desired;
+        end;
     end;
 `
 
@@ -41,32 +69,33 @@ func (sh fish) Hook() (string, error) {
 }
 
 func (sh fish) Export(e ShellExport) (string, error) {
-	var out string
+	var out strings.Builder
 	for key, value := range e {
 		if value == nil {
-			out += sh.unset(key)
+			out.WriteString(sh.unset(key))
 		} else {
-			out += sh.export(key, *value)
+			out.WriteString(sh.export(key, *value))
 		}
 	}
-	return out, nil
+	return out.String(), nil
 }
 
 func (sh fish) Dump(env Env) (string, error) {
-	var out string
+	var out strings.Builder
 	for key, value := range env {
-		out += sh.export(key, value)
+		out.WriteString(sh.export(key, value))
 	}
-	return out, nil
+	return out.String(), nil
 }
 
 func (sh fish) export(key, value string) string {
 	if key == "PATH" {
-		command := "set -x -g PATH"
-		for _, path := range strings.Split(value, ":") {
-			command += " " + sh.escape(path)
+		var command strings.Builder
+		command.WriteString("set -x -g PATH")
+		for path := range strings.SplitSeq(value, ":") {
+			command.WriteString(" " + sh.escape(path))
 		}
-		return command + ";"
+		return command.String() + ";"
 	}
 	return "set -x -g " + sh.escape(key) + " " + sh.escape(value) + ";"
 }
@@ -77,24 +106,29 @@ func (sh fish) unset(key string) string {
 
 func (sh fish) escape(str string) string {
 	in := []byte(str)
-	out := "'"
+	var out strings.Builder
+	out.Grow(len(in) + 2)
+	out.WriteByte(SINGLE_QUOTE)
 	i := 0
 	l := len(in)
 
 	hex := func(char byte) {
-		out += fmt.Sprintf("'\\X%02x'", char)
+		fmt.Fprintf(&out, "'\\X%02x'", char)
 	}
 
 	backslash := func(char byte) {
-		out += string([]byte{BACKSLASH, char})
+		out.WriteByte(BACKSLASH)
+		out.WriteByte(char)
 	}
 
 	escaped := func(str string) {
-		out += "'" + str + "'"
+		out.WriteByte(SINGLE_QUOTE)
+		out.WriteString(str)
+		out.WriteByte(SINGLE_QUOTE)
 	}
 
 	literal := func(char byte) {
-		out += string([]byte{char})
+		out.WriteByte(char)
 	}
 
 	for i < l {
@@ -122,7 +156,7 @@ func (sh fish) escape(str string) string {
 		i++
 	}
 
-	out += "'"
+	out.WriteByte(SINGLE_QUOTE)
 
-	return out
+	return out.String()
 }

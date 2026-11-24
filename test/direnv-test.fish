@@ -41,9 +41,13 @@ set -e DIRENV_FILE
 set -e DIRENV_WATCHES
 set -e DIRENV_DIFF
 
+# Source the hook to get __direnv_update_fish_complete_path and other functions
+direnv hook fish | source
+
 function direnv_eval
     #direnv export fish # for debugging
     direnv export fish | source
+    __direnv_update_fish_complete_path
 end
 
 function test_start -a name
@@ -241,3 +245,64 @@ begin
     test_neq "$DIRENV_WATCHES" "$WATCHES"
 end
 test_stop
+
+test_start fish-completions
+begin
+    set -l completions_dir "$TEST_DIR/scenarios/fish-completions/data/fish/vendor_completions.d"
+
+    echo "Verify completion path doesn't have our dir yet"
+    if contains -- $completions_dir $fish_complete_path
+        echo "FAILED: completions_dir already in fish_complete_path before direnv_eval"
+        exit 1
+    end
+
+    direnv_eval
+
+    echo "Verify completion path was added"
+    if not contains -- $completions_dir $fish_complete_path
+        echo "FAILED: completions_dir not added to fish_complete_path after direnv_eval"
+        exit 1
+    end
+
+    echo "Verify a second eval does not touch fish_complete_path"
+    set -g __fcp_writes 0
+    function __count_fcp_writes --on-variable fish_complete_path
+        set -g __fcp_writes (math $__fcp_writes + 1)
+    end
+    direnv_eval
+    functions --erase __count_fcp_writes
+    test_eq 0 $__fcp_writes
+end
+test_stop
+
+# Verify cleanup after leaving
+set -l completions_dir "$TEST_DIR/scenarios/fish-completions/data/fish/vendor_completions.d"
+if contains -- $completions_dir $fish_complete_path
+    echo "FAILED: completions_dir still in fish_complete_path after leaving"
+    exit 1
+end
+echo "## fish-completions cleanup verified ##"
+
+echo "## Testing fish-completions trailing slash ##"
+begin
+    set -l data_dir "$TEST_DIR/scenarios/fish-completions/data"
+    set -l completions_dir "$data_dir/fish/vendor_completions.d"
+    set -l saved_xdg $XDG_DATA_DIRS
+    set -l saved_fcp $fish_complete_path
+
+    set -g fish_complete_path $fish_complete_path $completions_dir
+    set -gx XDG_DATA_DIRS "$data_dir/"
+    set -l before $fish_complete_path
+    __direnv_update_fish_complete_path
+    __direnv_update_fish_complete_path
+
+    if string match -q -- '*//*' $fish_complete_path
+        echo "FAILED: double slash in fish_complete_path: $fish_complete_path"
+        exit 1
+    end
+    test_eq 1 (count (string match -- $completions_dir $fish_complete_path))
+    test_eq "$before" "$fish_complete_path"
+
+    set -gx XDG_DATA_DIRS $saved_xdg
+    set -g fish_complete_path $saved_fcp
+end

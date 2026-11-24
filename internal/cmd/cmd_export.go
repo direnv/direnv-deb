@@ -32,6 +32,11 @@ func exportCommand(currentEnv Env, args []string, config *Config) (err error) {
 	log.SetPrefix(log.Prefix() + "export:")
 	logDebug("start")
 
+	if currentEnv.IsTrue(DIRENV_DISABLE) {
+		logDebug("direnv is disabled by environment variable")
+		return nil
+	}
+
 	var target string
 
 	if len(args) > 1 {
@@ -47,7 +52,7 @@ func exportCommand(currentEnv Env, args []string, config *Config) (err error) {
 	loadedRC := config.LoadedRC()
 	toLoad := findEnvUp(config.WorkDir, config.LoadDotenv)
 
-	if loadedRC == nil && toLoad == "" {
+	if loadedRC == nil && toLoad == "" && currentEnv[DIRENV_DIFF] == "" {
 		return
 	}
 
@@ -67,6 +72,10 @@ func exportCommand(currentEnv Env, args []string, config *Config) (err error) {
 		logDebug("new RC, loading")
 	case loadedRC.times.Check() != nil:
 		logDebug("file changed, reloading")
+	case currentEnv[DIRENV_REQUIRED] != "":
+		// Force reload if required files were pending approval.
+		// The approval status might have changed even if file times haven't.
+		logDebug("required files pending, reloading")
 	default:
 		logDebug("no update needed")
 		return
@@ -81,7 +90,9 @@ func exportCommand(currentEnv Env, args []string, config *Config) (err error) {
 	}
 
 	if toLoad == "" {
-		logStatus(config, "unloading")
+		if diffStatus(currentEnv.Diff(previousEnv)) != "" {
+			logStatus(config, "unloading")
+		}
 		newEnv = previousEnv.Copy()
 		newEnv.CleanContext()
 	} else {
