@@ -11,3 +11,6 @@ export DH_GOLANG_EXCLUDES := script
 
 override_dh_auto_install:
 	dh_auto_install -- --no-source
+
+override_dh_auto_test:
+	setsid --wait dh_auto_test < /dev/null
