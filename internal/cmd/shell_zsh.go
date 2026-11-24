@@ -1,15 +1,26 @@
 package cmd
 
+import "strings"
+
 // ZSH is a singleton instance of ZSH_T
 type zsh struct{}
 
 // Zsh adds support for the venerable Z shell.
 var Zsh Shell = zsh{}
 
+// The guard skips the hook when chpwd fires within a non-interactive
+// shell or a subshell, e.g., from completion. It is inspired by zsh's
+// Functions/Chpwd/chpwd_recent_dirs but does not skip a non-toplevel
+// ZSH_EVAL_CONTEXT. See https://github.com/direnv/direnv/issues/1633 as to why.
 const zshHook = `
 _direnv_hook() {
+  setopt localoptions localtraps
+  if [[ ! -o interactive || $ZSH_SUBSHELL -ne 0 ]]; then
+    return
+  fi
+  vars="$({{.BashSelfPath}} export zsh)"
   trap -- '' SIGINT
-  eval "$("{{.SelfPath}}" export zsh)"
+  eval "$vars"
   trap - SIGINT
 }
 typeset -ag precmd_functions
@@ -27,23 +38,23 @@ func (sh zsh) Hook() (string, error) {
 }
 
 func (sh zsh) Export(e ShellExport) (string, error) {
-	var out string
+	var out strings.Builder
 	for key, value := range e {
 		if value == nil {
-			out += sh.unset(key)
+			out.WriteString(sh.unset(key))
 		} else {
-			out += sh.export(key, *value)
+			out.WriteString(sh.export(key, *value))
 		}
 	}
-	return out, nil
+	return out.String(), nil
 }
 
 func (sh zsh) Dump(env Env) (string, error) {
-	var out string
+	var out strings.Builder
 	for key, value := range env {
-		out += sh.export(key, value)
+		out.WriteString(sh.export(key, value))
 	}
-	return out, nil
+	return out.String(), nil
 }
 
 func (sh zsh) export(key, value string) string {
